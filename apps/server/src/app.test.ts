@@ -323,7 +323,15 @@ describe("server API", () => {
     expect(mergeRequests).toEqual([created.body.pullRequests[0].number]);
     expect(
       git(config.GIT_REPO_PATH, ["log", "--oneline", "main", "-1"])
-    ).toContain("Merge branch 'review-jam/bass'");
+    ).toContain("Merge bass agent into final production");
+
+    const finalProduction = await agent
+      .get("/api/songs/review-jam")
+      .expect(200);
+    const bass = finalProduction.body.parts.find(
+      (part: { role: string }) => part.role === "bass"
+    );
+    expect(bass.events[0].velocity).toBeGreaterThan(0.9);
   });
 
   it("keeps unknown API routes as structured JSON errors", async () => {

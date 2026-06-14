@@ -20,6 +20,7 @@ This foundation includes:
 - Mock agent runner for demos and tests, plus a Codex CLI runner option
 - GitHub PR creation for each agent branch
 - Human-controlled PR review and merge actions
+- Live studio pipeline, commit timeline, review status, and final mix readiness
 
 Railway deployment is intentionally deferred to a later phase.
 
@@ -75,4 +76,4 @@ packages/shared  Runtime schemas and shared TypeScript types
 6. Studio UI: live history, reviews, and final production
 7. Railway: Docker deployment with persistent storage
 
-Phases 1-5 are implemented. The default runner is `AGENT_RUNNER=mock` so local demos and tests do not consume Codex credits; set `AGENT_RUNNER=codex` to use the configured `CODEX_COMMAND`.
+Phases 1-6 are implemented. The default runner is `AGENT_RUNNER=mock` so local demos and tests do not consume Codex credits; set `AGENT_RUNNER=codex` to use the configured `CODEX_COMMAND`.

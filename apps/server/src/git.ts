@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, realpathSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import type { DatabaseSync } from "node:sqlite";
@@ -246,8 +246,26 @@ export function createGitEngine(
 
   function mergeBranchToMain(song: Song, role: AgentRole): CommitSummary {
     const branch = getBranch(song.id, role);
+    const relativePartPath = join("songs", song.slug, "parts", `${role}.json`);
     runGit(root, ["checkout", "main"]);
-    runGit(root, ["merge", "--no-ff", "--no-edit", branch.branch]);
+    copyFileSync(
+      join(branch.worktreePath, relativePartPath),
+      join(root, relativePartPath)
+    );
+    runGit(root, ["add", relativePartPath]);
+    const status = runGit(root, [
+      "status",
+      "--porcelain",
+      "--",
+      relativePartPath
+    ]);
+    if (status) {
+      runGit(root, [
+        "commit",
+        "-m",
+        `Merge ${role} agent into final production`
+      ]);
+    }
     const sha = runGit(root, ["rev-parse", "HEAD"]);
     const committedAt = runGit(root, ["show", "-s", "--format=%cI", sha]);
     const message = runGit(root, ["show", "-s", "--format=%s", sha]);

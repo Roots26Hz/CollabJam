@@ -33,6 +33,14 @@ const roleMeta = {
   bass: { label: "Bass", color: "var(--mint)", bars: [84, 48, 70, 56, 92, 62] }
 } satisfies Record<AgentRole, { label: string; color: string; bars: number[] }>;
 
+function formatTime(value: string | null) {
+  if (!value) return "pending";
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
 function Studio() {
   const [session, setSession] = useState<Session>({ authenticated: false });
   const [songs, setSongs] = useState<Song[]>([]);
@@ -264,6 +272,42 @@ function Studio() {
   }
 
   const song = production?.song;
+  const mergedPullRequests = pullRequests.filter(
+    (pullRequest) => pullRequest.status === "merged"
+  ).length;
+  const reviewedPullRequests = pullRequests.filter(
+    (pullRequest) =>
+      pullRequest.status === "review" || pullRequest.status === "merged"
+  ).length;
+  const finalMixReady =
+    Boolean(production) &&
+    pullRequests.length === 3 &&
+    mergedPullRequests === pullRequests.length;
+  const pipelineSteps = [
+    {
+      label: "Seed",
+      value: history?.commits.length ? "committed" : "waiting",
+      active: Boolean(history?.commits.length)
+    },
+    {
+      label: "Agents",
+      value: agentJob?.job.status ?? (production ? "ready" : "waiting"),
+      active: agentJob?.job.status === "completed"
+    },
+    {
+      label: "Review",
+      value:
+        pullRequests.length > 0
+          ? `${reviewedPullRequests}/${pullRequests.length}`
+          : "not opened",
+      active: reviewedPullRequests > 0
+    },
+    {
+      label: "Final",
+      value: finalMixReady ? "merged" : "pending",
+      active: finalMixReady
+    }
+  ];
   return (
     <div className="app-shell">
       <header>
@@ -343,6 +387,15 @@ function Studio() {
               </small>
             </div>
           </div>
+        </section>
+
+        <section className="pipeline-strip" aria-label="Studio pipeline">
+          {pipelineSteps.map((step) => (
+            <div className={step.active ? "active" : ""} key={step.label}>
+              <span>{step.label}</span>
+              <b>{step.value}</b>
+            </div>
+          ))}
         </section>
 
         <section id="agents" className="section-block">
@@ -430,7 +483,11 @@ function Studio() {
 
         <section id="history" className="workflow">
           <p className="eyebrow">Git history</p>
-          <h2>Worktrees are ready for agents.</h2>
+          <h2>
+            {finalMixReady
+              ? "Final production is merged."
+              : "Worktrees are ready for agents."}
+          </h2>
           <div className="steps">
             <div>
               <b>01</b>
@@ -444,27 +501,49 @@ function Studio() {
               <b>02</b>
               <h3>Rhythm</h3>
               <p>
-                {history?.branches.find((branch) => branch.role === "rhythm")
-                  ?.status ?? "pending"}
+                {pullRequests.find(
+                  (pullRequest) => pullRequest.role === "rhythm"
+                )?.status ??
+                  history?.branches.find((branch) => branch.role === "rhythm")
+                    ?.status ??
+                  "pending"}
               </p>
             </div>
             <div>
               <b>03</b>
               <h3>Harmony</h3>
               <p>
-                {history?.branches.find((branch) => branch.role === "harmony")
-                  ?.status ?? "pending"}
+                {pullRequests.find(
+                  (pullRequest) => pullRequest.role === "harmony"
+                )?.status ??
+                  history?.branches.find((branch) => branch.role === "harmony")
+                    ?.status ??
+                  "pending"}
               </p>
             </div>
             <div>
               <b>04</b>
               <h3>Bass</h3>
               <p>
-                {history?.branches.find((branch) => branch.role === "bass")
-                  ?.status ?? "pending"}
+                {pullRequests.find((pullRequest) => pullRequest.role === "bass")
+                  ?.status ??
+                  history?.branches.find((branch) => branch.role === "bass")
+                    ?.status ??
+                  "pending"}
               </p>
             </div>
           </div>
+          {history?.commits.length ? (
+            <div className="commit-list">
+              {history.commits.slice(0, 6).map((commit) => (
+                <p key={commit.sha}>
+                  <code>{commit.sha.slice(0, 7)}</code>
+                  <span>{commit.message}</span>
+                  <small>{commit.role ?? "main"}</small>
+                </p>
+              ))}
+            </div>
+          ) : null}
           {agentEvents.length > 0 && (
             <div className="event-log">
               {agentEvents.map((event) => (
@@ -500,6 +579,11 @@ function Studio() {
                   <span>{pullRequest.role}</span>
                   <h3>#{pullRequest.number}</h3>
                   <p>{pullRequest.title}</p>
+                  <small>
+                    {pullRequest.status === "merged"
+                      ? `Merged ${formatTime(pullRequest.mergedAt)}`
+                      : `Opened ${formatTime(pullRequest.createdAt)}`}
+                  </small>
                   <a href={pullRequest.url} target="_blank" rel="noreferrer">
                     Open on GitHub
                   </a>
@@ -534,11 +618,15 @@ function Studio() {
 
         <section id="mix" className="mix-banner">
           <div>
-            <p className="eyebrow">Production player</p>
+            <p className="eyebrow">
+              {finalMixReady ? "Final merged production" : "Production player"}
+            </p>
             <h2>{song?.title ?? "Your final mix starts here."}</h2>
             <p>
-              {song?.stylePrompt ??
-                "Create a song to generate a deterministic seed arrangement."}
+              {finalMixReady
+                ? "All reviewed agent parts are merged into main and ready for playback."
+                : (song?.stylePrompt ??
+                  "Create a song to generate a deterministic seed arrangement.")}
             </p>
           </div>
           <button

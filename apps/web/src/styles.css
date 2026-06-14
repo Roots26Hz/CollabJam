@@ -235,6 +235,36 @@ h1 em {
 .workflow {
   padding: 100px 8vw;
 }
+.pipeline-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin: -42px 8vw 72px;
+  overflow: hidden;
+  border: 1px solid #303948;
+  border-radius: 14px;
+  background: #303948;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.24);
+}
+.pipeline-strip div {
+  display: grid;
+  gap: 6px;
+  padding: 20px;
+  background: #121823;
+}
+.pipeline-strip span {
+  color: var(--muted);
+  font: 500 10px "DM Mono";
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.pipeline-strip b {
+  color: var(--paper);
+  font-size: 18px;
+}
+.pipeline-strip .active b {
+  color: var(--mint);
+}
 .section-heading {
   display: flex;
   align-items: end;
@@ -379,6 +409,34 @@ h1 em {
   font-size: 13px;
   line-height: 1.6;
 }
+.commit-list {
+  display: grid;
+  gap: 1px;
+  margin-top: 24px;
+  overflow: hidden;
+  border: 1px solid #c9c5bc;
+  border-radius: 12px;
+  background: #c9c5bc;
+}
+.commit-list p {
+  display: grid;
+  grid-template-columns: 86px 1fr 70px;
+  gap: 14px;
+  align-items: center;
+  margin: 0;
+  padding: 13px 16px;
+  background: #fffaf0;
+}
+.commit-list code,
+.commit-list small {
+  color: #887f73;
+  font: 500 11px "DM Mono";
+  text-transform: uppercase;
+}
+.commit-list span {
+  color: #39342d;
+  font-size: 13px;
+}
 .event-log {
   display: grid;
   gap: 8px;
@@ -446,10 +504,14 @@ h1 em {
   font-size: 28px;
 }
 .pr-card p,
-.pr-card a {
+.pr-card a,
+.pr-card small {
   color: #6c665e;
   font-size: 13px;
   line-height: 1.5;
+}
+.pr-card small {
+  font-size: 12px;
 }
 .pr-card a {
   text-decoration: underline;
@@ -605,6 +667,9 @@ footer {
   .hero {
     grid-template-columns: 1fr;
   }
+  .pipeline-strip {
+    grid-template-columns: 1fr 1fr;
+  }
   .record-card {
     justify-self: start;
     max-width: 330px;
@@ -653,6 +718,13 @@ footer {
     flex-direction: column;
   }
   .steps {
+    grid-template-columns: 1fr;
+  }
+  .pipeline-strip {
+    grid-template-columns: 1fr;
+    margin: -34px 22px 50px;
+  }
+  .commit-list p {
     grid-template-columns: 1fr;
   }
   .steps div {
