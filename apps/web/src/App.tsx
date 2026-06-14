@@ -11,6 +11,7 @@ import type {
   AgentEvent,
   AgentJobSummary,
   CreateSong,
+  PullRequestSummary,
   Session,
   Song,
   SongHistory,
@@ -39,6 +40,7 @@ function Studio() {
   const [history, setHistory] = useState<SongHistory | null>(null);
   const [agentJob, setAgentJob] = useState<AgentJobSummary | null>(null);
   const [agentEvents, setAgentEvents] = useState<AgentEvent[]>([]);
+  const [pullRequests, setPullRequests] = useState<PullRequestSummary[]>([]);
   const [modal, setModal] = useState<"login" | "song" | null>(null);
   const [error, setError] = useState("");
   const [playing, setPlaying] = useState(false);
@@ -58,6 +60,7 @@ function Studio() {
         `/api/songs/${data.songs[0].slug}/history`
       );
       setHistory((await historyResponse.json()) as SongHistory);
+      await loadPullRequests(data.songs[0].slug);
     }
   }
 
@@ -66,6 +69,7 @@ function Studio() {
     setProduction((await response.json()) as SongProduction);
     const historyResponse = await fetch(`/api/songs/${slug}/history`);
     setHistory((await historyResponse.json()) as SongHistory);
+    await loadPullRequests(slug);
   }
 
   async function refreshHistory() {
@@ -74,6 +78,14 @@ function Studio() {
       `/api/songs/${production.song.slug}/history`
     );
     setHistory((await historyResponse.json()) as SongHistory);
+  }
+
+  async function loadPullRequests(slug: string) {
+    const response = await fetch(`/api/songs/${slug}/pull-requests`);
+    const data = (await response.json()) as {
+      pullRequests: PullRequestSummary[];
+    };
+    setPullRequests(data.pullRequests);
   }
 
   useEffect(() => {
@@ -125,6 +137,7 @@ function Studio() {
     };
     setProduction(created);
     setHistory(created.history);
+    setPullRequests([]);
     setSongs((current) => [created.song, ...current]);
     setModal(null);
   }
@@ -202,9 +215,52 @@ function Studio() {
         );
         source.close();
         void refreshHistory();
+        void loadPullRequests(production.song.slug);
       }
     };
     source.onerror = () => source.close();
+  }
+
+  async function createPullRequests() {
+    if (!production) return;
+    setError("");
+    const response = await fetch(
+      `/api/songs/${production.song.slug}/pull-requests`,
+      { method: "POST", credentials: "include" }
+    );
+    if (!response.ok) {
+      setError("Could not create GitHub PRs. Check GitHub configuration.");
+      return;
+    }
+    const data = (await response.json()) as {
+      pullRequests: PullRequestSummary[];
+    };
+    setPullRequests(data.pullRequests);
+  }
+
+  async function updatePullRequest(number: number, action: "review" | "merge") {
+    setError("");
+    const response = await fetch(`/api/pull-requests/${number}/${action}`, {
+      method: "POST",
+      credentials: "include"
+    });
+    if (!response.ok) {
+      setError(
+        action === "merge"
+          ? "Could not merge that PR."
+          : "Could not move that PR to review."
+      );
+      return;
+    }
+    const pullRequest = (await response.json()) as PullRequestSummary;
+    setPullRequests((current) =>
+      current.map((item) =>
+        item.number === pullRequest.number ? pullRequest : item
+      )
+    );
+    if (action === "merge" && production) {
+      await loadSong(production.song.slug);
+    }
   }
 
   const song = production?.song;
@@ -416,6 +472,61 @@ function Studio() {
                   <b>{event.role ?? "job"}</b>
                   <span>{event.message}</span>
                 </p>
+              ))}
+            </div>
+          )}
+          <div className="pr-panel">
+            <div>
+              <p className="eyebrow">GitHub review</p>
+              <h3>Pull requests gate the merge.</h3>
+            </div>
+            <button
+              className="primary"
+              disabled={
+                !production ||
+                !session.authenticated ||
+                agentJob?.job.status !== "completed" ||
+                pullRequests.length > 0
+              }
+              onClick={() => void createPullRequests()}
+            >
+              Create PRs
+            </button>
+          </div>
+          {pullRequests.length > 0 && (
+            <div className="pr-grid">
+              {pullRequests.map((pullRequest) => (
+                <article key={pullRequest.number} className="pr-card">
+                  <span>{pullRequest.role}</span>
+                  <h3>#{pullRequest.number}</h3>
+                  <p>{pullRequest.title}</p>
+                  <a href={pullRequest.url} target="_blank" rel="noreferrer">
+                    Open on GitHub
+                  </a>
+                  <div>
+                    <b>{pullRequest.status}</b>
+                    {pullRequest.status === "open" && (
+                      <button
+                        disabled={!session.authenticated}
+                        onClick={() =>
+                          void updatePullRequest(pullRequest.number, "review")
+                        }
+                      >
+                        Start review
+                      </button>
+                    )}
+                    {pullRequest.status === "review" && (
+                      <button
+                        disabled={!session.authenticated}
+                        onClick={() =>
+                          void updatePullRequest(pullRequest.number, "merge")
+                        }
+                      >
+                        Approve merge
+                      </button>
+                    )}
+                  </div>
+                </article>
               ))}
             </div>
           )}

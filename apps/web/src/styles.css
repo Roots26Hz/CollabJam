@@ -401,6 +401,80 @@ h1 em {
   font: 500 11px "DM Mono";
   text-transform: uppercase;
 }
+.pr-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 34px;
+  padding-top: 32px;
+  border-top: 1px solid #c9c5bc;
+}
+.pr-panel .eyebrow {
+  margin-bottom: 8px;
+}
+.pr-panel h3 {
+  margin: 0;
+  font-size: 26px;
+}
+.pr-panel .primary:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+.pr-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 22px;
+}
+.pr-card {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid #c9c5bc;
+  border-radius: 12px;
+  background: #fffaf0;
+}
+.pr-card > span,
+.pr-card b {
+  color: #c54c41;
+  font: 500 11px "DM Mono";
+  text-transform: uppercase;
+}
+.pr-card h3 {
+  margin: 0;
+  font-size: 28px;
+}
+.pr-card p,
+.pr-card a {
+  color: #6c665e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pr-card a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.pr-card div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+.pr-card button {
+  border: 1px solid #c9c5bc;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.pr-card button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .mix-banner {
   margin: 80px 8vw;
   padding: 60px;
@@ -538,6 +612,9 @@ footer {
   .agent-grid {
     grid-template-columns: 1fr;
   }
+  .pr-grid {
+    grid-template-columns: 1fr;
+  }
   .steps {
     grid-template-columns: 1fr 1fr;
   }
@@ -570,6 +647,10 @@ footer {
     align-items: start;
     flex-direction: column;
     gap: 20px;
+  }
+  .pr-panel {
+    align-items: start;
+    flex-direction: column;
   }
   .steps {
     grid-template-columns: 1fr;

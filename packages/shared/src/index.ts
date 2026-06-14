@@ -123,6 +123,10 @@ export const songHistorySchema = z.object({
   branches: z.array(branchSummarySchema)
 });
 
+export const pullRequestListSchema = z.object({
+  pullRequests: z.array(pullRequestSummarySchema)
+});
+
 export const agentEventSchema = z.object({
   id: z.number().int().nonnegative(),
   jobId: z.string().uuid(),
@@ -152,5 +156,6 @@ export type AgentEvent = z.infer<typeof agentEventSchema>;
 export type AgentJobSummary = z.infer<typeof agentJobSummarySchema>;
 export type CommitSummary = z.infer<typeof commitSummarySchema>;
 export type PullRequestSummary = z.infer<typeof pullRequestSummarySchema>;
+export type PullRequestList = z.infer<typeof pullRequestListSchema>;
 export type PullRequestStatus = z.infer<typeof pullRequestStatusSchema>;
 export type Session = z.infer<typeof sessionSchema>;

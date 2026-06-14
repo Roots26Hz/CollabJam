@@ -18,8 +18,10 @@ This foundation includes:
 - Isolated Git worktrees for rhythm, harmony, and bass branches
 - Parallel agent job orchestration with persisted event history
 - Mock agent runner for demos and tests, plus a Codex CLI runner option
+- GitHub PR creation for each agent branch
+- Human-controlled PR review and merge actions
 
-Real GitHub pull requests and human-controlled merges are intentionally deferred to later phases.
+Railway deployment is intentionally deferred to a later phase.
 
 ## Setup
 
@@ -30,6 +32,17 @@ npm run dev
 ```
 
 The web app runs at `http://localhost:5173`; Vite proxies `/api` to the server at `http://localhost:3001`.
+
+For real GitHub PRs, configure:
+
+```bash
+GITHUB_TOKEN=github_pat_or_token
+GITHUB_OWNER=your-org-or-user
+GITHUB_REPO=your-repo
+GITHUB_REMOTE=origin
+```
+
+The token needs permission to create and merge pull requests. Branches are pushed to `GITHUB_REMOTE` before PR creation.
 
 ## Commands
 
@@ -62,4 +75,4 @@ packages/shared  Runtime schemas and shared TypeScript types
 6. Studio UI: live history, reviews, and final production
 7. Railway: Docker deployment with persistent storage
 
-Phases 1-4 are implemented. The default runner is `AGENT_RUNNER=mock` so local demos and tests do not consume Codex credits; set `AGENT_RUNNER=codex` to use the configured `CODEX_COMMAND`.
+Phases 1-5 are implemented. The default runner is `AGENT_RUNNER=mock` so local demos and tests do not consume Codex credits; set `AGENT_RUNNER=codex` to use the configured `CODEX_COMMAND`.

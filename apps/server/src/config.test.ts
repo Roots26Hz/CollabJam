@@ -20,5 +20,6 @@ describe("environment configuration", () => {
     expect(config.WORKTREES_PATH).toBe("./worktrees");
     expect(config.AGENT_RUNNER).toBe("mock");
     expect(config.CODEX_COMMAND).toBe("codex");
+    expect(config.GITHUB_REMOTE).toBe("origin");
   });
 });

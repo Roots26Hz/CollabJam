@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -15,12 +15,16 @@ function git(cwd: string, args: string[]) {
 function createTestConfig(): AppConfig {
   const root = mkdtempSync(join(tmpdir(), "collabjam-tests-"));
   const repo = join(root, "repo");
+  const remote = join(root, "origin.git");
   execFileSync("git", ["init", "-b", "main", repo]);
+  execFileSync("git", ["init", "--bare", remote]);
   git(repo, ["config", "user.name", "CollabJam Tests"]);
   git(repo, ["config", "user.email", "tests@collabjam.local"]);
   writeFileSync(join(repo, "README.md"), "test repo\n");
   git(repo, ["add", "README.md"]);
   git(repo, ["commit", "-m", "Initial commit"]);
+  git(repo, ["remote", "add", "origin", remote]);
+  git(repo, ["push", "-u", "origin", "main"]);
 
   return {
     NODE_ENV: "test",
@@ -32,6 +36,10 @@ function createTestConfig(): AppConfig {
     WORKTREES_PATH: join(root, "worktrees"),
     AGENT_RUNNER: "mock",
     CODEX_COMMAND: "codex",
+    GITHUB_TOKEN: "github-token",
+    GITHUB_OWNER: "collabjam",
+    GITHUB_REPO: "studio",
+    GITHUB_REMOTE: "origin",
     ADMIN_PASSWORD: "correct-horse",
     SESSION_SECRET: "a-test-secret-that-is-at-least-32-characters"
   };
@@ -61,7 +69,10 @@ describe("server API", () => {
     app = createApp(config, database);
   });
 
-  afterEach(() => database.close());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    database.close();
+  });
 
   it("reports service and database health", async () => {
     const response = await request(app).get("/api/health").expect(200);
@@ -214,6 +225,105 @@ describe("server API", () => {
     expect(
       git(config.GIT_REPO_PATH, ["log", "--oneline", "agent-jam/rhythm", "-1"])
     ).toContain("Rhythm agent: generate initial pattern v1");
+  });
+
+  it("creates GitHub PRs and merges only after human review", async () => {
+    let nextPullRequestNumber = 40;
+    const mergeRequests: number[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const target = String(url);
+        if (target.endsWith("/pulls") && init?.method === "POST") {
+          const body = JSON.parse(String(init.body)) as {
+            title: string;
+            head: string;
+          };
+          const number = nextPullRequestNumber;
+          nextPullRequestNumber += 1;
+          return Response.json(
+            {
+              number,
+              title: body.title,
+              html_url: `https://github.com/collabjam/studio/pull/${number}`,
+              state: "open",
+              head: { ref: body.head }
+            },
+            { status: 201 }
+          );
+        }
+        const mergeMatch = target.match(/\/pulls\/(\d+)\/merge$/);
+        if (mergeMatch && init?.method === "PUT") {
+          mergeRequests.push(Number(mergeMatch[1]));
+          return Response.json({ merged: true, sha: "merge-sha" });
+        }
+        return Response.json({ message: "unexpected" }, { status: 404 });
+      })
+    );
+
+    const agent = request.agent(app);
+    await agent
+      .post("/api/session/login")
+      .send({ password: "correct-horse" })
+      .expect(200);
+    await agent
+      .post("/api/songs")
+      .send({
+        title: "Review Jam",
+        stylePrompt: "PR-driven funk",
+        bpm: 120,
+        key: "C minor",
+        timeSignature: "4/4"
+      })
+      .expect(201);
+    const started = await agent
+      .post("/api/songs/review-jam/generate")
+      .send()
+      .expect(202);
+    await waitForJob(agent, started.body.job.id);
+
+    await request(app)
+      .post("/api/songs/review-jam/pull-requests")
+      .send()
+      .expect(401);
+
+    const created = await agent
+      .post("/api/songs/review-jam/pull-requests")
+      .send()
+      .expect(201);
+    expect(created.body.pullRequests).toHaveLength(3);
+    expect(
+      created.body.pullRequests.map(
+        (pullRequest: { status: string }) => pullRequest.status
+      )
+    ).toEqual(["open", "open", "open"]);
+    expect(
+      git(config.GIT_REPO_PATH, ["ls-remote", "--heads", "origin"])
+    ).toContain("refs/heads/review-jam/rhythm");
+
+    const mergeBeforeReview = await agent
+      .post(`/api/pull-requests/${created.body.pullRequests[0].number}/merge`)
+      .send()
+      .expect(409);
+    expect(mergeBeforeReview.body.error.code).toBe(
+      "PULL_REQUEST_NOT_IN_REVIEW"
+    );
+
+    const review = await agent
+      .post(`/api/pull-requests/${created.body.pullRequests[0].number}/review`)
+      .send()
+      .expect(200);
+    expect(review.body.status).toBe("review");
+
+    const merged = await agent
+      .post(`/api/pull-requests/${created.body.pullRequests[0].number}/merge`)
+      .send()
+      .expect(200);
+    expect(merged.body.status).toBe("merged");
+    expect(mergeRequests).toEqual([created.body.pullRequests[0].number]);
+    expect(
+      git(config.GIT_REPO_PATH, ["log", "--oneline", "main", "-1"])
+    ).toContain("Merge branch 'review-jam/bass'");
   });
 
   it("keeps unknown API routes as structured JSON errors", async () => {

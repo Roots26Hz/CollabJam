@@ -230,11 +230,44 @@ export function createGitEngine(
     });
   }
 
+  function pushBranch(songId: string, role: AgentRole, remote: string) {
+    const branch = getBranch(songId, role);
+    if (branch.status !== "ready") {
+      throw new Error(`${role} worktree is not ready`);
+    }
+    runGit(branch.worktreePath, [
+      "push",
+      "-u",
+      remote,
+      `${branch.branch}:${branch.branch}`
+    ]);
+    return branch;
+  }
+
+  function mergeBranchToMain(song: Song, role: AgentRole): CommitSummary {
+    const branch = getBranch(song.id, role);
+    runGit(root, ["checkout", "main"]);
+    runGit(root, ["merge", "--no-ff", "--no-edit", branch.branch]);
+    const sha = runGit(root, ["rev-parse", "HEAD"]);
+    const committedAt = runGit(root, ["show", "-s", "--format=%cI", sha]);
+    const message = runGit(root, ["show", "-s", "--format=%s", sha]);
+    return commitRow(database, {
+      sha,
+      song_id: song.id,
+      role,
+      branch: "main",
+      message,
+      committed_at: committedAt
+    });
+  }
+
   return {
     commitSongBase,
     createWorktrees,
     getHistory,
     getBranch,
-    commitAgentPart
+    commitAgentPart,
+    pushBranch,
+    mergeBranchToMain
   };
 }

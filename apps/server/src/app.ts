@@ -10,6 +10,7 @@ import { createAgentOrchestrator } from "./agents.js";
 import type { AppConfig } from "./config.js";
 import { errorHandler, notFound } from "./errors.js";
 import { createGitEngine } from "./git.js";
+import { createGitHubWorkflow } from "./github.js";
 import { createSessionHandlers } from "./session.js";
 import { createSongStore } from "./songs.js";
 
@@ -42,6 +43,7 @@ export function createApp(config: AppConfig, database: DatabaseSync) {
     runner: config.AGENT_RUNNER,
     codexCommand: config.CODEX_COMMAND
   });
+  const pullRequests = createGitHubWorkflow(database, git, config);
 
   app.get("/api/health", (_request, response) => {
     database.prepare("SELECT 1").get();
@@ -66,6 +68,9 @@ export function createApp(config: AppConfig, database: DatabaseSync) {
   app.get("/api/songs/:slug/history", (request, response) => {
     response.json(songs.getHistory(request.params.slug));
   });
+  app.get("/api/songs/:slug/pull-requests", (request, response) => {
+    response.json(pullRequests.listForSong(request.params.slug));
+  });
   app.post("/api/songs", sessions.requireAdmin, (request, response) => {
     response.status(201).json(songs.createSong(request.body));
   });
@@ -74,6 +79,37 @@ export function createApp(config: AppConfig, database: DatabaseSync) {
     sessions.requireAdmin,
     (request, response) => {
       response.status(202).json(agents.start(String(request.params.slug)));
+    }
+  );
+  app.post(
+    "/api/songs/:slug/pull-requests",
+    sessions.requireAdmin,
+    async (request, response, next) => {
+      try {
+        response
+          .status(201)
+          .json(await pullRequests.createForSong(String(request.params.slug)));
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+  app.post(
+    "/api/pull-requests/:number/review",
+    sessions.requireAdmin,
+    (request, response) => {
+      response.json(pullRequests.markInReview(Number(request.params.number)));
+    }
+  );
+  app.post(
+    "/api/pull-requests/:number/merge",
+    sessions.requireAdmin,
+    async (request, response, next) => {
+      try {
+        response.json(await pullRequests.merge(Number(request.params.number)));
+      } catch (error) {
+        next(error);
+      }
     }
   );
   app.get("/api/jobs/:jobId", (request, response) => {

@@ -12,6 +12,10 @@ const environmentSchema = z.object({
   WORKTREES_PATH: z.string().min(1).default("./worktrees"),
   AGENT_RUNNER: z.enum(["mock", "codex"]).default("mock"),
   CODEX_COMMAND: z.string().min(1).default("codex"),
+  GITHUB_TOKEN: z.string().min(1).optional(),
+  GITHUB_OWNER: z.string().min(1).optional(),
+  GITHUB_REPO: z.string().min(1).optional(),
+  GITHUB_REMOTE: z.string().min(1).default("origin"),
   ADMIN_PASSWORD: z.string().min(8),
   SESSION_SECRET: z.string().min(32)
 });
