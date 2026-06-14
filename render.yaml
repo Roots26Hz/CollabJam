@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: collabjam-studio
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    disk:
+      name: collabjam-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_PATH
+        value: /data/collabjam.db
+      - key: GIT_REPO_PATH
+        value: /data/repo
+      - key: SONGS_PATH
+        value: /data/repo/songs
+      - key: WORKTREES_PATH
+        value: /data/worktrees
+      - key: AGENT_RUNNER
+        value: mock
+      - key: CODEX_COMMAND
+        value: codex
+      - key: CODEX_TIMEOUT_MS
+        value: "300000"
+      - key: GITHUB_REMOTE
+        value: origin
+      - key: GIT_AUTHOR_NAME
+        value: CollabJam Studio
+      - key: GIT_AUTHOR_EMAIL
+        value: collabjam@example.local
+      - key: WEB_ORIGIN
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_OWNER
+        sync: false
+      - key: GITHUB_REPO
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

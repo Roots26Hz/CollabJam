@@ -21,7 +21,7 @@ This foundation includes:
 - GitHub PR creation for each agent branch
 - Human-controlled PR review and merge actions
 - Live studio pipeline, commit timeline, review status, and final mix readiness
-- Railway-ready Docker deployment with persistent SQLite, songs, worktrees, and runtime Git repo
+- Docker deployment for Railway or Render with persistent SQLite, songs, worktrees, and runtime Git repo
 
 ## Setup
 
@@ -44,9 +44,47 @@ GITHUB_REMOTE=origin
 
 The token needs permission to create and merge pull requests. Branches are pushed to `GITHUB_REMOTE` before PR creation.
 
-## Railway Deployment
+## Deployment
 
-This project deploys as one full-stack Railway service. The Docker image builds the React app, compiles the Express API, installs `git`, and seeds a persistent runtime Git repository under `/data/repo`.
+This project deploys as one full-stack Docker service. The Docker image builds the React app, compiles the Express API, installs `git`, and seeds a persistent runtime Git repository under `/data/repo`.
+
+### Render
+
+Render works well for this project as a Docker Web Service, as long as you add a persistent disk mounted at `/data`. Without the disk, the app can boot, but SQLite data, song JSON, and Git worktrees will reset when the service restarts or redeploys.
+
+1. Push this repository to GitHub.
+2. In Render, create a new Blueprint from the repo, or create a Docker Web Service manually.
+3. Use the root `Dockerfile`.
+4. Add a persistent disk:
+
+```bash
+Mount path: /data
+Size: 1 GB or larger
+```
+
+5. Set these required environment variables:
+
+```bash
+NODE_ENV=production
+DATABASE_PATH=/data/collabjam.db
+GIT_REPO_PATH=/data/repo
+SONGS_PATH=/data/repo/songs
+WORKTREES_PATH=/data/worktrees
+WEB_ORIGIN=https://your-render-service.onrender.com
+ADMIN_PASSWORD=choose-a-long-password
+SESSION_SECRET=generate-at-least-32-random-characters
+AGENT_RUNNER=mock
+```
+
+Render provides `PORT`; do not hard-code it unless you are running the container yourself.
+
+6. Set the health check path to `/api/health`.
+
+For Blueprint deploys, `render.yaml` includes the Docker service, `/data` disk, health check, and non-secret defaults. Fill in the `sync: false` values in the Render dashboard after the service is created.
+
+### Railway
+
+Railway also works with the same Docker image and `/data` layout.
 
 1. Push this repository to GitHub.
 2. Create a Railway project from the GitHub repository.
@@ -68,7 +106,7 @@ AGENT_RUNNER=mock
 
 5. Deploy. Railway uses `railway.json` and the root `Dockerfile`; health checks target `/api/health`.
 
-For real GitHub PRs on Railway, also set:
+For real GitHub PRs on Render or Railway, also set:
 
 ```bash
 GITHUB_TOKEN=github_pat_or_token
@@ -121,6 +159,6 @@ packages/shared  Runtime schemas and shared TypeScript types
 4. Codex agents: parallel structured generation
 5. GitHub workflow: real pull requests and human-controlled merges
 6. Studio UI: live history, reviews, and final production
-7. Railway: Docker deployment with persistent storage
+7. Deployment: Docker deployment with persistent storage for Railway and Render
 
 Phases 1-7 are implemented. The default runner is `AGENT_RUNNER=mock` so local demos and tests do not consume Codex credits; set `AGENT_RUNNER=codex` to use the configured `CODEX_COMMAND`.
