@@ -1,0 +1,36 @@
+<svg width="1200" height="1200" viewBox="0 0 1200 1200" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">CollabJam Studio logo</title>
+  <desc id="desc">A dark rounded card logo with colorful vertical music bars and the CollabJam Music Studio wordmark.</desc>
+  <defs>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#121328"/>
+      <stop offset="1" stop-color="#0b0c19"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-30%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="28" stdDeviation="24" flood-color="#03040b" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="1200" rx="72" fill="url(#card)"/>
+  <rect x="48" y="48" width="1104" height="1104" rx="58" fill="none" stroke="#7f77dd" stroke-opacity="0.18" stroke-width="2"/>
+
+  <g transform="translate(276 326) scale(2.9)" filter="url(#shadow)">
+    <rect x="5" y="50" width="10" height="28" rx="4" fill="#7f77dd"/>
+    <rect x="18" y="32" width="10" height="46" rx="4" fill="#a048b0"/>
+    <rect x="31" y="18" width="10" height="60" rx="4" fill="#d4537e"/>
+    <rect x="44" y="36" width="10" height="42" rx="4" fill="#d85a30"/>
+    <rect x="57" y="54" width="10" height="24" rx="4" fill="#993c1d"/>
+    <path d="M 10,42 C 10,4 62,4 62,46" stroke="#d4537e" stroke-width="1.5" fill="none" stroke-dasharray="2.5,4" stroke-linecap="round" opacity="0.65"/>
+    <circle cx="10" cy="42" r="5" fill="#7f77dd" opacity="0.22"/>
+    <circle cx="10" cy="42" r="2.5" fill="#7f77dd"/>
+    <circle cx="62" cy="46" r="5" fill="#d85a30" opacity="0.22"/>
+    <circle cx="62" cy="46" r="2.5" fill="#d85a30"/>
+  </g>
+
+  <g transform="translate(262 612)">
+    <text x="0" y="92" font-family="Syne, Arial Black, Arial, sans-serif" font-size="122" font-weight="800" letter-spacing="-6">
+      <tspan fill="#e4dfff">Collab</tspan><tspan fill="#d85a30">Jam</tspan>
+    </text>
+    <text x="8" y="178" font-family="DM Sans, Arial, sans-serif" font-size="28" font-weight="500" letter-spacing="17" fill="#c3b9eb" fill-opacity="0.38">MUSIC STUDIO</text>
+  </g>
+</svg>

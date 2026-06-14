@@ -35,6 +35,150 @@ const roleMeta = {
 
 const agentRoles = Object.keys(roleMeta) as AgentRole[];
 
+function CollabJamLogo() {
+  return (
+    <span className="brand-logo" aria-label="CollabJam Studio">
+      <svg
+        className="brand-icon"
+        width="43"
+        height="48"
+        viewBox="0 0 72 80"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <rect x="5" y="50" width="10" height="28" rx="4" fill="#7F77DD">
+          <animate
+            attributeName="height"
+            values="28;18;24;28"
+            dur="2.0s"
+            repeatCount="indefinite"
+            calcMode="spline"
+            keyTimes="0;0.33;0.66;1"
+            keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1"
+          />
+          <animate
+            attributeName="y"
+            values="50;60;54;50"
+            dur="2.0s"
+            repeatCount="indefinite"
+            calcMode="spline"
+            keyTimes="0;0.33;0.66;1"
+            keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1"
+          />
+        </rect>
+        <rect x="18" y="32" width="10" height="46" rx="4" fill="#A048B0">
+          <animate
+            attributeName="height"
+            values="46;34;40;46"
+            dur="1.8s"
+            begin="0.3s"
+            repeatCount="indefinite"
+            calcMode="spline"
+            keyTimes="0;0.33;0.66;1"
+            keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1"
+          />
+          <animate
+            attributeName="y"
+            values="32;44;38;32"
+            dur="1.8s"
+            begin="0.3s"
+            repeatCount="indefinite"
+            calcMode="spline"
+            keyTimes="0;0.33;0.66;1"
+            keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1"
+          />
+        </rect>
+        <rect x="31" y="18" width="10" height="60" rx="4" fill="#D4537E">
+          <animate
+            attributeName="height"
+            values="60;44;52;60"
+            dur="1.6s"
+            begin="0.1s"
+            repeatCount="indefinite"
+            calcMode="spline"
+            keyTimes="0;0.33;0.66;1"
+            keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1"
+          />
+          <animate
+            attributeName="y"
+            values="18;34;26;18"
+            dur="1.6s"
+            begin="0.1s"
+            repeatCount="indefinite"
+            calcMode="spline"
+            keyTimes="0;0.33;0.66;1"
+            keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1"
+          />
+        </rect>
+        <rect x="44" y="36" width="10" height="42" rx="4" fill="#D85A30">
+          <animate
+            attributeName="height"
+            values="42;30;38;42"
+            dur="2.2s"
+            begin="0.5s"
+            repeatCount="indefinite"
+            calcMode="spline"
+            keyTimes="0;0.33;0.66;1"
+            keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1"
+          />
+          <animate
+            attributeName="y"
+            values="36;48;40;36"
+            dur="2.2s"
+            begin="0.5s"
+            repeatCount="indefinite"
+            calcMode="spline"
+            keyTimes="0;0.33;0.66;1"
+            keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1"
+          />
+        </rect>
+        <rect x="57" y="54" width="10" height="24" rx="4" fill="#993C1D">
+          <animate
+            attributeName="height"
+            values="24;16;20;24"
+            dur="1.9s"
+            begin="0.7s"
+            repeatCount="indefinite"
+            calcMode="spline"
+            keyTimes="0;0.33;0.66;1"
+            keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1"
+          />
+          <animate
+            attributeName="y"
+            values="54;62;58;54"
+            dur="1.9s"
+            begin="0.7s"
+            repeatCount="indefinite"
+            calcMode="spline"
+            keyTimes="0;0.33;0.66;1"
+            keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1"
+          />
+        </rect>
+        <path
+          d="M 10,42 C 10,4 62,4 62,46"
+          stroke="#D4537E"
+          strokeWidth="1.5"
+          fill="none"
+          strokeDasharray="2.5,4"
+          strokeLinecap="round"
+          opacity="0.65"
+        />
+        <circle cx="10" cy="42" r="5" fill="#7F77DD" opacity="0.22" />
+        <circle cx="10" cy="42" r="2.5" fill="#7F77DD" />
+        <circle cx="62" cy="46" r="5" fill="#D85A30" opacity="0.22" />
+        <circle cx="62" cy="46" r="2.5" fill="#D85A30" />
+      </svg>
+      <span className="brand-wordmark">
+        <span>
+          <span className="brand-collab">Collab</span>
+          <span className="brand-jam">Jam</span>
+        </span>
+        <small>Music Studio</small>
+      </span>
+    </span>
+  );
+}
+
 function formatTime(value: string | null) {
   if (!value) return "pending";
   return new Intl.DateTimeFormat(undefined, {
@@ -364,10 +508,7 @@ function Studio() {
     <div className="app-shell">
       <header>
         <Link className="brand" to="/">
-          <span className="brand-mark">CJ</span>
-          <span>
-            CollabJam <b>Studio</b>
-          </span>
+          <CollabJamLogo />
         </Link>
         <nav>
           <a href="#agents">Parts</a>

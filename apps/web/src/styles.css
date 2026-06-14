@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap");
 
 :root {
   color: #f4f0e8;
@@ -55,24 +55,42 @@ header {
 }
 .brand {
   display: flex;
-  gap: 12px;
   align-items: center;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
 }
-.brand b {
-  color: var(--mint);
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
 }
-.brand-mark {
+.brand-icon {
+  flex: 0 0 auto;
+  filter: drop-shadow(0 8px 18px rgba(216, 90, 48, 0.12));
+}
+.brand-wordmark {
   display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  color: var(--ink);
-  background: var(--mint);
-  font-size: 12px;
+  gap: 2px;
+  line-height: 1;
+}
+.brand-wordmark > span {
+  font:
+    800 25px "Syne",
+    sans-serif;
+  letter-spacing: -1.3px;
+}
+.brand-collab {
+  color: #e4dfff;
+}
+.brand-jam {
+  color: #d85a30;
+}
+.brand-wordmark small {
+  color: rgba(195, 185, 235, 0.42);
+  font:
+    600 8px "DM Sans",
+    sans-serif;
+  letter-spacing: 4.8px;
+  text-transform: uppercase;
 }
 nav {
   display: flex;
@@ -700,7 +718,7 @@ footer {
   header {
     padding: 0 20px;
   }
-  .brand span:last-child {
+  .brand-wordmark {
     display: none;
   }
   .hero,
