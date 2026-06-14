@@ -50,6 +50,18 @@ function runGit(repoPath: string, args: string[]): string {
   }
 }
 
+function gitSucceeds(repoPath: string, args: string[]): boolean {
+  try {
+    execFileSync("git", args, {
+      cwd: repoPath,
+      stdio: ["ignore", "ignore", "ignore"]
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function ensureInside(basePath: string, targetPath: string) {
   const relativePath = relative(
     realpathSync(basePath),
@@ -235,6 +247,7 @@ export function createGitEngine(
     if (branch.status !== "ready") {
       throw new Error(`${role} worktree is not ready`);
     }
+    mergeRemoteMainForPullRequest(branch.worktreePath, remote);
     runGit(branch.worktreePath, [
       "push",
       "-u",
@@ -248,6 +261,31 @@ export function createGitEngine(
     const remoteMain = runGit(root, ["ls-remote", "--heads", remote, "main"]);
     if (remoteMain) return;
     runGit(root, ["push", "-u", remote, "main:main"]);
+  }
+
+  function mergeRemoteMainForPullRequest(worktreePath: string, remote: string) {
+    const remoteMain = runGit(root, ["ls-remote", "--heads", remote, "main"]);
+    if (!remoteMain) return;
+
+    runGit(worktreePath, ["fetch", remote, "main"]);
+    if (
+      gitSucceeds(worktreePath, [
+        "merge-base",
+        "--is-ancestor",
+        "FETCH_HEAD",
+        "HEAD"
+      ])
+    ) {
+      return;
+    }
+    runGit(worktreePath, [
+      "merge",
+      "--allow-unrelated-histories",
+      "-s",
+      "ours",
+      "--no-edit",
+      "FETCH_HEAD"
+    ]);
   }
 
   function diagnostics(remote: string) {

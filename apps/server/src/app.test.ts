@@ -12,6 +12,18 @@ function git(cwd: string, args: string[]) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 }
 
+function replaceRemoteMainWithUnrelatedHistory(remote: string) {
+  const unrelated = mkdtempSync(join(tmpdir(), "collabjam-unrelated-"));
+  execFileSync("git", ["init", "-b", "main", unrelated]);
+  git(unrelated, ["config", "user.name", "CollabJam Tests"]);
+  git(unrelated, ["config", "user.email", "tests@collabjam.local"]);
+  writeFileSync(join(unrelated, "README.md"), "external demo repo\n");
+  git(unrelated, ["add", "README.md"]);
+  git(unrelated, ["commit", "-m", "External demo repository"]);
+  git(unrelated, ["remote", "add", "origin", remote]);
+  git(unrelated, ["push", "--force", "origin", "main"]);
+}
+
 function createTestConfig(): AppConfig {
   const root = mkdtempSync(join(tmpdir(), "collabjam-tests-"));
   const repo = join(root, "repo");
@@ -342,6 +354,73 @@ describe("server API", () => {
       (part: { role: string }) => part.role === "bass"
     );
     expect(bass.events[0].velocity).toBeGreaterThan(0.9);
+  });
+
+  it("creates GitHub PRs when the demo repo main has unrelated history", async () => {
+    const remote = git(config.GIT_REPO_PATH, ["remote", "get-url", "origin"]);
+    replaceRemoteMainWithUnrelatedHistory(remote);
+
+    let nextPullRequestNumber = 100;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const target = String(url);
+        if (target.endsWith("/pulls") && init?.method === "POST") {
+          const body = JSON.parse(String(init.body)) as {
+            title: string;
+            head: string;
+          };
+          const number = nextPullRequestNumber;
+          nextPullRequestNumber += 1;
+          return Response.json(
+            {
+              number,
+              title: body.title,
+              html_url: `https://github.com/collabjam/studio/pull/${number}`,
+              state: "open",
+              head: { ref: body.head }
+            },
+            { status: 201 }
+          );
+        }
+        return Response.json({ message: "unexpected" }, { status: 404 });
+      })
+    );
+
+    const agent = request.agent(app);
+    await agent
+      .post("/api/session/login")
+      .send({ password: "correct-horse" })
+      .expect(200);
+    await agent
+      .post("/api/songs")
+      .send({
+        title: "Unrelated Review",
+        stylePrompt: "PR branch ancestry check",
+        bpm: 120,
+        key: "C minor",
+        timeSignature: "4/4"
+      })
+      .expect(201);
+    const started = await agent
+      .post("/api/songs/unrelated-review/generate")
+      .send()
+      .expect(202);
+    await waitForJob(agent, started.body.job.id);
+
+    const created = await agent
+      .post("/api/songs/unrelated-review/pull-requests")
+      .send()
+      .expect(201);
+    expect(created.body.pullRequests).toHaveLength(3);
+
+    git(config.GIT_REPO_PATH, ["fetch", "origin", "main"]);
+    const mergeBase = git(config.GIT_REPO_PATH, [
+      "merge-base",
+      "origin/main",
+      "unrelated-review/rhythm"
+    ]);
+    expect(mergeBase).toHaveLength(40);
   });
 
   it("keeps unknown API routes as structured JSON errors", async () => {
