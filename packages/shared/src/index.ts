@@ -71,7 +71,40 @@ export const pullRequestSummarySchema = z.object({
 
 export const sessionSchema = z.object({ authenticated: z.boolean() });
 
+export const createSongSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  stylePrompt: z.string().trim().min(1).max(1000),
+  bpm: z.number().int().min(40).max(240),
+  key: z.string().trim().min(1).max(12),
+  timeSignature: z.string().regex(/^\d+\/\d+$/)
+});
+
+export const musicPositionSchema = z.string().regex(/^\d+:\d+:\d+$/);
+export const musicEventSchema = z.object({
+  time: musicPositionSchema,
+  note: z.string().min(1).max(12),
+  duration: z.string().min(1).max(8),
+  velocity: z.number().min(0).max(1)
+});
+
+export const musicPartSchema = z.object({
+  version: z.literal(1),
+  role: agentRoleSchema,
+  instrument: z.enum(["drums", "poly-synth", "mono-synth"]),
+  bars: z.number().int().min(1).max(64),
+  events: z.array(musicEventSchema).max(2048)
+});
+
+export const songProductionSchema = z.object({
+  song: songSchema,
+  parts: z.array(musicPartSchema)
+});
+
 export type Song = z.infer<typeof songSchema>;
+export type CreateSong = z.infer<typeof createSongSchema>;
+export type MusicEvent = z.infer<typeof musicEventSchema>;
+export type MusicPart = z.infer<typeof musicPartSchema>;
+export type SongProduction = z.infer<typeof songProductionSchema>;
 export type SongStatus = z.infer<typeof songStatusSchema>;
 export type JobStatus = z.infer<typeof jobStatusSchema>;
 export type AgentJob = z.infer<typeof agentJobSchema>;

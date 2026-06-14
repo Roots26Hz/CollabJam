@@ -58,7 +58,7 @@ export function createSessionHandlers(
     response.cookie(COOKIE_NAME, sessionValue, {
       httpOnly: true,
       sameSite: "strict",
-      secure: request.app.get("env") === "production",
+      secure: request.secure,
       maxAge: MAX_AGE_SECONDS * 1000,
       path: "/"
     });
@@ -69,7 +69,7 @@ export function createSessionHandlers(
     response.clearCookie(COOKIE_NAME, {
       httpOnly: true,
       sameSite: "strict",
-      secure: request.app.get("env") === "production",
+      secure: request.secure,
       path: "/"
     });
     response.json({ authenticated: false });

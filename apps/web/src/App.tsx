@@ -1,38 +1,64 @@
-import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent
+} from "react";
 import { Link, Route, Routes } from "react-router-dom";
-import type { Session } from "@collabjam/shared";
+import type {
+  AgentRole,
+  CreateSong,
+  Session,
+  Song,
+  SongProduction
+} from "@collabjam/shared";
+import { playProduction } from "./player";
 
-const tracks = [
-  {
-    role: "Rhythm",
-    branch: "funk-80s-track/rhythm",
+const roleMeta = {
+  rhythm: {
+    label: "Rhythm",
     color: "var(--coral)",
     bars: [72, 54, 82, 64, 88, 44]
   },
-  {
-    role: "Harmony",
-    branch: "funk-80s-track/harmony",
+  harmony: {
+    label: "Harmony",
     color: "var(--violet)",
     bars: [40, 76, 58, 90, 68, 52]
   },
-  {
-    role: "Bass",
-    branch: "funk-80s-track/bass",
-    color: "var(--mint)",
-    bars: [84, 48, 70, 56, 92, 62]
-  }
-];
+  bass: { label: "Bass", color: "var(--mint)", bars: [84, 48, 70, 56, 92, 62] }
+} satisfies Record<AgentRole, { label: string; color: string; bars: number[] }>;
 
 function Studio() {
   const [session, setSession] = useState<Session>({ authenticated: false });
-  const [showLogin, setShowLogin] = useState(false);
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [production, setProduction] = useState<SongProduction | null>(null);
+  const [modal, setModal] = useState<"login" | "song" | null>(null);
   const [error, setError] = useState("");
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState<Set<AgentRole>>(new Set());
+  const player = useRef<Awaited<ReturnType<typeof playProduction>> | null>(
+    null
+  );
+
+  async function loadSongs() {
+    const response = await fetch("/api/songs");
+    const data = (await response.json()) as { songs: Song[] };
+    setSongs(data.songs);
+    if (data.songs[0]) {
+      const detail = await fetch(`/api/songs/${data.songs[0].slug}`);
+      setProduction((await detail.json()) as SongProduction);
+    }
+  }
 
   useEffect(() => {
-    void fetch("/api/session", { credentials: "include" })
-      .then((response) => response.json())
-      .then(setSession)
-      .catch(() => undefined);
+    void Promise.all([
+      fetch("/api/session", { credentials: "include" })
+        .then((response) => response.json())
+        .then(setSession),
+      loadSongs()
+    ]).catch(() => setError("The studio API is unavailable."));
+    return () => player.current?.stop();
   }, []);
 
   async function login(event: FormEvent<HTMLFormElement>) {
@@ -45,14 +71,69 @@ function Studio() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ password: form.get("password") })
     });
-    if (!response.ok) {
-      setError("That password did not unlock the studio.");
-      return;
-    }
+    if (!response.ok)
+      return setError("That password did not unlock the studio.");
     setSession({ authenticated: true });
-    setShowLogin(false);
+    setModal(null);
   }
 
+  async function createSong(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    const form = new FormData(event.currentTarget);
+    const input: CreateSong = {
+      title: String(form.get("title")),
+      stylePrompt: String(form.get("stylePrompt")),
+      bpm: Number(form.get("bpm")),
+      key: String(form.get("key")),
+      timeSignature: "4/4"
+    };
+    const response = await fetch("/api/songs", {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input)
+    });
+    if (!response.ok) return setError("Could not create that song.");
+    const created = (await response.json()) as SongProduction;
+    setProduction(created);
+    setSongs((current) => [created.song, ...current]);
+    setModal(null);
+  }
+
+  async function togglePlayback() {
+    if (playing) {
+      player.current?.stop();
+      player.current = null;
+      setPlaying(false);
+      return;
+    }
+    if (!production) return;
+    setPlaying(true);
+    try {
+      player.current = await playProduction(
+        production.song,
+        production.parts,
+        muted,
+        () => setPlaying(false)
+      );
+    } catch {
+      setPlaying(false);
+      setError("Playback could not start in this browser.");
+    }
+  }
+
+  function toggleMute(role: AgentRole) {
+    setMuted((current) => {
+      const next = new Set(current);
+      if (next.has(role)) next.delete(role);
+      else next.add(role);
+      player.current?.setMuted(role, next.has(role));
+      return next;
+    });
+  }
+
+  const song = production?.song;
   return (
     <div className="app-shell">
       <header>
@@ -63,11 +144,11 @@ function Studio() {
           </span>
         </Link>
         <nav>
-          <a href="#agents">Agents</a>
-          <a href="#history">History</a>
-          <a href="#mix">Final mix</a>
+          <a href="#agents">Parts</a>
+          <a href="#history">Workflow</a>
+          <a href="#mix">Player</a>
         </nav>
-        <button className="auth-button" onClick={() => setShowLogin(true)}>
+        <button className="auth-button" onClick={() => setModal("login")}>
           <span
             className={
               session.authenticated ? "status-dot online" : "status-dot"
@@ -85,16 +166,40 @@ function Studio() {
               Every part gets its own <em>branch.</em>
             </h1>
             <p className="hero-copy">
-              Codex agents compose in parallel worktrees. You review every
-              change, merge the best takes, and hear the result come together.
+              Structured rhythm, harmony, and bass parts are ready for isolated
+              Codex worktrees. Compose the seed production now and hear the JSON
+              come alive.
             </p>
             <div className="hero-actions">
-              <button className="primary">+ Create a song</button>
-              <a href="#agents">Explore the workflow ↓</a>
+              <button
+                className="primary"
+                onClick={() =>
+                  session.authenticated ? setModal("song") : setModal("login")
+                }
+              >
+                + Create a song
+              </button>
+              {songs.length > 1 && (
+                <select
+                  value={song?.slug}
+                  onChange={async (event) => {
+                    const response = await fetch(
+                      `/api/songs/${event.target.value}`
+                    );
+                    setProduction(await response.json());
+                  }}
+                >
+                  {songs.map((item) => (
+                    <option value={item.slug} key={item.id}>
+                      {item.title}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
           <div className="record-card">
-            <div className="record">
+            <div className={`record ${playing ? "spinning" : ""}`}>
               <div className="label">
                 <span>COLLAB</span>
                 <strong>JAM</strong>
@@ -102,9 +207,13 @@ function Studio() {
               </div>
             </div>
             <div className="now-playing">
-              <span>Demo session</span>
-              <strong>Funk 80s Track</strong>
-              <small>112 BPM · A minor · 4/4</small>
+              <span>{song ? "Current session" : "No session yet"}</span>
+              <strong>{song?.title ?? "Create your first song"}</strong>
+              <small>
+                {song
+                  ? `${song.bpm} BPM · ${song.key} · ${song.timeSignature}`
+                  : "JSON + Tone.js"}
+              </small>
             </div>
           </div>
         </section>
@@ -112,111 +221,201 @@ function Studio() {
         <section id="agents" className="section-block">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Session workspace</p>
-              <h2>Three agents. One production.</h2>
+              <p className="eyebrow">Structured parts</p>
+              <h2>Three voices. One schema.</h2>
             </div>
-            <span className="phase-pill">Foundation preview</span>
+            <span className="phase-pill">Tone.js ready</span>
           </div>
           <div className="agent-grid">
-            {tracks.map((track, index) => (
-              <article
-                className="agent-card"
-                key={track.role}
-                style={{ "--track-color": track.color } as CSSProperties}
-              >
-                <div className="agent-top">
-                  <span className="track-number">0{index + 1}</span>
-                  <span className="worktree">isolated worktree</span>
-                </div>
-                <h3>{track.role}</h3>
-                <code>{track.branch}</code>
-                <div className="waveform">
-                  {track.bars.map((height, bar) => (
-                    <i key={bar} style={{ height: `${height}%` }} />
-                  ))}
-                </div>
-                <div className="agent-footer">
-                  <span>
-                    <b>Ready</b>
-                    <small>Waiting for Phase 4</small>
-                  </span>
-                  <button aria-label={`Open ${track.role} agent`}>→</button>
-                </div>
-              </article>
-            ))}
+            {(Object.keys(roleMeta) as AgentRole[]).map((role, index) => {
+              const meta = roleMeta[role];
+              const part = production?.parts.find((item) => item.role === role);
+              return (
+                <article
+                  className={`agent-card ${muted.has(role) ? "muted" : ""}`}
+                  key={role}
+                  style={{ "--track-color": meta.color } as CSSProperties}
+                >
+                  <div className="agent-top">
+                    <span className="track-number">0{index + 1}</span>
+                    <span className="worktree">
+                      {part?.instrument ?? "awaiting song"}
+                    </span>
+                  </div>
+                  <h3>{meta.label}</h3>
+                  <code>
+                    {song
+                      ? `songs/${song.slug}/parts/${role}.json`
+                      : `${role}.json`}
+                  </code>
+                  <div className="waveform">
+                    {meta.bars.map((height, bar) => (
+                      <i key={bar} style={{ height: `${height}%` }} />
+                    ))}
+                  </div>
+                  <div className="agent-footer">
+                    <span>
+                      <b>
+                        {part ? `${part.events.length} events` : "Not created"}
+                      </b>
+                      <small>
+                        {part
+                          ? `${part.bars} bars · schema v${part.version}`
+                          : "Create a song to seed parts"}
+                      </small>
+                    </span>
+                    <button
+                      onClick={() => toggleMute(role)}
+                      disabled={!part}
+                      aria-label={`${muted.has(role) ? "Unmute" : "Mute"} ${meta.label}`}
+                    >
+                      {muted.has(role) ? "M" : "♪"}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
 
         <section id="history" className="workflow">
-          <p className="eyebrow">How it ships</p>
-          <h2>Composition with a commit history.</h2>
+          <p className="eyebrow">Phase 2 data flow</p>
+          <h2>From validated JSON to sound.</h2>
           <div className="steps">
             <div>
               <b>01</b>
-              <h3>Generate</h3>
-              <p>Agents write structured music parts in parallel.</p>
+              <h3>Describe</h3>
+              <p>Set title, style, tempo, and musical key.</p>
             </div>
             <div>
               <b>02</b>
-              <h3>Review</h3>
-              <p>Inspect commits and real GitHub pull requests.</p>
+              <h3>Validate</h3>
+              <p>Zod guards every song and musical event.</p>
             </div>
             <div>
               <b>03</b>
-              <h3>Merge</h3>
-              <p>Approve the parts that belong in the production.</p>
+              <h3>Persist</h3>
+              <p>Git-ready files sit under the song directory.</p>
             </div>
             <div>
               <b>04</b>
-              <h3>Play</h3>
-              <p>Tone.js performs only what reached main.</p>
+              <h3>Perform</h3>
+              <p>Tone.js schedules the merged production.</p>
             </div>
           </div>
         </section>
 
         <section id="mix" className="mix-banner">
           <div>
-            <p className="eyebrow">Main branch</p>
-            <h2>The final mix lives here.</h2>
-            <p>Nothing plays in production until a human approves it.</p>
+            <p className="eyebrow">Production player</p>
+            <h2>{song?.title ?? "Your final mix starts here."}</h2>
+            <p>
+              {song?.stylePrompt ??
+                "Create a song to generate a deterministic seed arrangement."}
+            </p>
           </div>
-          <button disabled>
-            <span>▶</span> Playback arrives in Phase 2
+          <button
+            className="play-button"
+            disabled={!production}
+            onClick={() => void togglePlayback()}
+          >
+            <span>{playing ? "■" : "▶"}</span>
+            {playing ? "Stop production" : "Play production"}
           </button>
         </section>
       </main>
-
       <footer>
         <span>CollabJam Studio · Pune 2026</span>
-        <span>React + Node.js + Git + Codex</span>
+        <span>React + Tone.js + Git + Codex</span>
       </footer>
 
-      {showLogin && (
-        <div className="modal-backdrop" onMouseDown={() => setShowLogin(false)}>
-          <form
-            className="login-card"
-            onSubmit={login}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="close"
-              onClick={() => setShowLogin(false)}
+      {modal && (
+        <div className="modal-backdrop" onMouseDown={() => setModal(null)}>
+          {modal === "login" ? (
+            <form
+              className="login-card"
+              onSubmit={login}
+              onMouseDown={(event) => event.stopPropagation()}
             >
-              ×
-            </button>
-            <p className="eyebrow">Studio access</p>
-            <h2>Admin login</h2>
-            <p>Unlock generation and merge controls.</p>
-            <label>
-              Password
-              <input name="password" type="password" autoFocus required />
-            </label>
-            {error && <p className="form-error">{error}</p>}
-            <button className="primary" type="submit">
-              Enter studio
-            </button>
-          </form>
+              <button
+                type="button"
+                className="close"
+                onClick={() => setModal(null)}
+              >
+                ×
+              </button>
+              <p className="eyebrow">Studio access</p>
+              <h2>Admin login</h2>
+              <p>Unlock song creation and future merge controls.</p>
+              <label>
+                Password
+                <input name="password" type="password" autoFocus required />
+              </label>
+              {error && <p className="form-error">{error}</p>}
+              <button className="primary" type="submit">
+                Enter studio
+              </button>
+            </form>
+          ) : (
+            <form
+              className="login-card song-form"
+              onSubmit={createSong}
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="close"
+                onClick={() => setModal(null)}
+              >
+                ×
+              </button>
+              <p className="eyebrow">New production</p>
+              <h2>Create a song</h2>
+              <label>
+                Title
+                <input
+                  name="title"
+                  defaultValue="Funk 80s Track"
+                  required
+                  maxLength={120}
+                />
+              </label>
+              <label>
+                Style prompt
+                <textarea
+                  name="stylePrompt"
+                  defaultValue="Punchy neon funk with crisp drums and a warm analog bassline"
+                  required
+                />
+              </label>
+              <div className="form-row">
+                <label>
+                  BPM
+                  <input
+                    name="bpm"
+                    type="number"
+                    defaultValue={112}
+                    min={40}
+                    max={240}
+                    required
+                  />
+                </label>
+                <label>
+                  Key
+                  <input
+                    name="key"
+                    defaultValue="A minor"
+                    required
+                    maxLength={12}
+                  />
+                </label>
+              </div>
+              {error && <p className="form-error">{error}</p>}
+              <button className="primary" type="submit">
+                Create production
+              </button>
+            </form>
+          )}
         </div>
       )}
     </div>

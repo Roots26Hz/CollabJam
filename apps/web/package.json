@@ -14,7 +14,8 @@
     "vite": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "react-router-dom": "latest"
+    "react-router-dom": "latest",
+    "tone": "^15.1.22"
   },
   "devDependencies": {
     "@types/react": "latest",

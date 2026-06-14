@@ -2,7 +2,7 @@
 
 CollabJam Studio is a Git-native collaborative music studio. Codex agents compose rhythm, harmony, and bass in isolated worktrees; humans review real pull requests before the merged production reaches playback.
 
-## Phase 1
+## Current capabilities
 
 This foundation includes:
 
@@ -12,8 +12,11 @@ This foundation includes:
 - Shared Zod schemas and TypeScript contracts
 - Signed, HTTP-only admin session cookie
 - Unit and API integration tests
+- Git-ready song and music-part JSON files
+- Song creation and public production APIs
+- Tone.js playback with rhythm, harmony, and bass mute controls
 
-Git worktrees, Codex execution, GitHub pull requests, and Tone.js are intentionally deferred to later phases.
+Git worktrees, Codex execution, and GitHub pull requests are intentionally deferred to later phases.
 
 ## Setup
 

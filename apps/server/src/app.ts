@@ -9,10 +9,12 @@ import { pinoHttp } from "pino-http";
 import type { AppConfig } from "./config.js";
 import { errorHandler, notFound } from "./errors.js";
 import { createSessionHandlers } from "./session.js";
+import { createSongStore } from "./songs.js";
 
 export function createApp(config: AppConfig, database: DatabaseSync) {
   const app = express();
   app.set("env", config.NODE_ENV);
+  app.set("trust proxy", 1);
   app.disable("x-powered-by");
   app.use(pinoHttp());
   app.use(
@@ -28,6 +30,7 @@ export function createApp(config: AppConfig, database: DatabaseSync) {
     config.ADMIN_PASSWORD,
     config.SESSION_SECRET
   );
+  const songs = createSongStore(database, config.SONGS_PATH);
 
   app.get("/api/health", (_request, response) => {
     database.prepare("SELECT 1").get();
@@ -42,6 +45,15 @@ export function createApp(config: AppConfig, database: DatabaseSync) {
   app.post("/api/session/logout", sessions.logout);
   app.post("/api/admin/check", sessions.requireAdmin, (_request, response) => {
     response.status(204).end();
+  });
+  app.get("/api/songs", (_request, response) => {
+    response.json({ songs: songs.listSongs() });
+  });
+  app.get("/api/songs/:slug", (request, response) => {
+    response.json(songs.getSong(request.params.slug));
+  });
+  app.post("/api/songs", sessions.requireAdmin, (request, response) => {
+    response.status(201).json(songs.createSong(request.body));
   });
 
   app.use("/api", notFound);

@@ -31,6 +31,14 @@ export function createDatabase(path: string): DatabaseSync {
       completed_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS music_parts (
+      song_id TEXT NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+      role TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (song_id, role)
+    );
+
     CREATE TABLE IF NOT EXISTS agent_runs (
       id TEXT PRIMARY KEY,
       job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,

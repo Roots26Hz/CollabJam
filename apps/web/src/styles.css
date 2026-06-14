@@ -27,7 +27,9 @@ body {
     radial-gradient(circle at 78% 8%, #26314a 0, transparent 27rem), #0c1018;
 }
 button,
-input {
+input,
+textarea,
+select {
   font: inherit;
 }
 button,
@@ -150,6 +152,14 @@ h1 em {
 .hero-actions a {
   color: var(--muted);
 }
+.hero-actions select {
+  max-width: 230px;
+  color: var(--paper);
+  background: #151b26;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 12px;
+}
 .primary {
   border: 0;
   border-radius: 7px;
@@ -179,6 +189,14 @@ h1 em {
   box-shadow:
     inset 0 0 0 7px #080b10,
     0 10px 24px #05070b;
+}
+.record.spinning {
+  animation: spin 2.4s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .label {
   width: 38%;
@@ -250,6 +268,9 @@ h1 em {
   border: 1px solid var(--line);
   border-top: 3px solid var(--track-color);
   border-radius: 10px;
+}
+.agent-card.muted {
+  opacity: 0.48;
 }
 .agent-top,
 .agent-footer {
@@ -366,6 +387,18 @@ h1 em {
   border: 1px solid #343d4b;
   border-radius: 8px;
 }
+.mix-banner .play-button {
+  color: var(--ink);
+  background: var(--mint);
+  border: 0;
+  cursor: pointer;
+  font-weight: 800;
+}
+.mix-banner .play-button:disabled {
+  color: #7d8592;
+  background: #202733;
+  cursor: not-allowed;
+}
 .mix-banner button span {
   margin-right: 8px;
 }
@@ -419,6 +452,23 @@ footer {
   border-radius: 7px;
   padding: 13px;
   outline: none;
+}
+.login-card textarea {
+  min-height: 90px;
+  resize: vertical;
+  background: #0d121a;
+  color: var(--paper);
+  border: 1px solid #3a4352;
+  border-radius: 7px;
+  padding: 13px;
+}
+.song-form {
+  width: min(100%, 520px);
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
 }
 .login-card input:focus {
   border-color: var(--mint);
