@@ -15,6 +15,8 @@ describe("environment configuration", () => {
     });
     expect(config.PORT).toBe(3001);
     expect(config.NODE_ENV).toBe("development");
-    expect(config.SONGS_PATH).toBe("./data/songs");
+    expect(config.GIT_REPO_PATH).toBe(".");
+    expect(config.SONGS_PATH).toBe("./songs");
+    expect(config.WORKTREES_PATH).toBe("./worktrees");
   });
 });

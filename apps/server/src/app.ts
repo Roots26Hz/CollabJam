@@ -8,6 +8,7 @@ import helmet from "helmet";
 import { pinoHttp } from "pino-http";
 import type { AppConfig } from "./config.js";
 import { errorHandler, notFound } from "./errors.js";
+import { createGitEngine } from "./git.js";
 import { createSessionHandlers } from "./session.js";
 import { createSongStore } from "./songs.js";
 
@@ -30,7 +31,12 @@ export function createApp(config: AppConfig, database: DatabaseSync) {
     config.ADMIN_PASSWORD,
     config.SESSION_SECRET
   );
-  const songs = createSongStore(database, config.SONGS_PATH);
+  const git = createGitEngine(
+    database,
+    config.GIT_REPO_PATH,
+    config.WORKTREES_PATH
+  );
+  const songs = createSongStore(database, config.SONGS_PATH, git);
 
   app.get("/api/health", (_request, response) => {
     database.prepare("SELECT 1").get();
@@ -51,6 +57,9 @@ export function createApp(config: AppConfig, database: DatabaseSync) {
   });
   app.get("/api/songs/:slug", (request, response) => {
     response.json(songs.getSong(request.params.slug));
+  });
+  app.get("/api/songs/:slug/history", (request, response) => {
+    response.json(songs.getHistory(request.params.slug));
   });
   app.post("/api/songs", sessions.requireAdmin, (request, response) => {
     response.status(201).json(songs.createSong(request.body));

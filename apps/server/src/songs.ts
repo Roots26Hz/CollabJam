@@ -13,6 +13,7 @@ import {
   type Song
 } from "@collabjam/shared";
 import { HttpError } from "./errors.js";
+import type { createGitEngine } from "./git.js";
 
 type SongRow = {
   id: string;
@@ -120,7 +121,13 @@ function demoParts(): MusicPart[] {
   return [rhythm, harmony, bass].map((part) => musicPartSchema.parse(part));
 }
 
-export function createSongStore(database: DatabaseSync, songsPath: string) {
+type GitEngine = ReturnType<typeof createGitEngine>;
+
+export function createSongStore(
+  database: DatabaseSync,
+  songsPath: string,
+  git: GitEngine
+) {
   mkdirSync(songsPath, { recursive: true });
 
   function listSongs(): Song[] {
@@ -215,8 +222,18 @@ export function createSongStore(database: DatabaseSync, songsPath: string) {
       database.exec("ROLLBACK");
       throw error;
     }
-    return { song, parts };
+    git.commitSongBase(song, directory);
+    const branches = git.createWorktrees(song);
+    return { song, parts, history: git.getHistory(song.id), branches };
   }
 
-  return { listSongs, getSong, createSong };
+  function getHistory(slug: string) {
+    const row = database
+      .prepare("SELECT * FROM songs WHERE slug = ?")
+      .get(slug) as SongRow | undefined;
+    if (!row) throw new HttpError(404, "SONG_NOT_FOUND", "Song not found.");
+    return git.getHistory(row.id);
+  }
+
+  return { listSongs, getSong, createSong, getHistory };
 }

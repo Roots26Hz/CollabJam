@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdtempSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import request from "supertest";
@@ -7,21 +8,40 @@ import { createApp } from "./app.js";
 import type { AppConfig } from "./config.js";
 import { createDatabase } from "./database.js";
 
-const config: AppConfig = {
-  NODE_ENV: "test",
-  PORT: 3001,
-  WEB_ORIGIN: "http://localhost:5173",
-  DATABASE_PATH: ":memory:",
-  SONGS_PATH: join(mkdtempSync(join(tmpdir(), "collabjam-tests-")), "songs"),
-  ADMIN_PASSWORD: "correct-horse",
-  SESSION_SECRET: "a-test-secret-that-is-at-least-32-characters"
-};
+function git(cwd: string, args: string[]) {
+  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+}
+
+function createTestConfig(): AppConfig {
+  const root = mkdtempSync(join(tmpdir(), "collabjam-tests-"));
+  const repo = join(root, "repo");
+  execFileSync("git", ["init", "-b", "main", repo]);
+  git(repo, ["config", "user.name", "CollabJam Tests"]);
+  git(repo, ["config", "user.email", "tests@collabjam.local"]);
+  writeFileSync(join(repo, "README.md"), "test repo\n");
+  git(repo, ["add", "README.md"]);
+  git(repo, ["commit", "-m", "Initial commit"]);
+
+  return {
+    NODE_ENV: "test",
+    PORT: 3001,
+    WEB_ORIGIN: "http://localhost:5173",
+    DATABASE_PATH: ":memory:",
+    GIT_REPO_PATH: repo,
+    SONGS_PATH: join(repo, "songs"),
+    WORKTREES_PATH: join(root, "worktrees"),
+    ADMIN_PASSWORD: "correct-horse",
+    SESSION_SECRET: "a-test-secret-that-is-at-least-32-characters"
+  };
+}
 
 describe("server API", () => {
   let database: ReturnType<typeof createDatabase>;
   let app: ReturnType<typeof createApp>;
+  let config: AppConfig;
 
   beforeEach(() => {
+    config = createTestConfig();
     database = createDatabase(":memory:");
     app = createApp(config, database);
   });
@@ -87,6 +107,10 @@ describe("server API", () => {
       })
       .expect(201);
     expect(created.body.parts).toHaveLength(3);
+    expect(created.body.history.commits[0].message).toBe(
+      "Create song: Neon Drive"
+    );
+    expect(created.body.history.branches).toHaveLength(3);
 
     const list = await request(app).get("/api/songs").expect(200);
     expect(list.body.songs[0].slug).toBe("neon-drive");
@@ -95,6 +119,19 @@ describe("server API", () => {
       .get("/api/songs/neon-drive")
       .expect(200);
     expect(production.body.parts[0].events.length).toBeGreaterThan(0);
+
+    const history = await request(app)
+      .get("/api/songs/neon-drive/history")
+      .expect(200);
+    expect(
+      history.body.branches.map((branch: { role: string }) => branch.role)
+    ).toEqual(["bass", "harmony", "rhythm"]);
+    expect(
+      git(config.GIT_REPO_PATH, ["branch", "--list", "neon-drive/rhythm"])
+    ).toContain("neon-drive/rhythm");
+    expect(git(config.GIT_REPO_PATH, ["worktree", "list"])).toContain(
+      join(config.WORKTREES_PATH, "neon-drive", "rhythm")
+    );
   });
 
   it("keeps unknown API routes as structured JSON errors", async () => {

@@ -33,8 +33,8 @@ export const songSchema = z.object({
   key: z.string().min(1).max(12),
   timeSignature: z.string().regex(/^\d+\/\d+$/),
   status: songStatusSchema,
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime()
+  createdAt: z.string().datetime({ offset: true }),
+  updatedAt: z.string().datetime({ offset: true })
 });
 
 export const agentJobSchema = z.object({
@@ -43,17 +43,17 @@ export const agentJobSchema = z.object({
   role: agentRoleSchema,
   status: jobStatusSchema,
   error: z.string().nullable(),
-  startedAt: z.string().datetime().nullable(),
-  completedAt: z.string().datetime().nullable()
+  startedAt: z.string().datetime({ offset: true }).nullable(),
+  completedAt: z.string().datetime({ offset: true }).nullable()
 });
 
 export const commitSummarySchema = z.object({
   sha: z.string().min(7),
   songId: z.string().uuid(),
-  role: agentRoleSchema,
+  role: agentRoleSchema.nullable(),
   branch: z.string().min(1),
   message: z.string().min(1),
-  committedAt: z.string().datetime()
+  committedAt: z.string().datetime({ offset: true })
 });
 
 export const pullRequestSummarySchema = z.object({
@@ -65,8 +65,8 @@ export const pullRequestSummarySchema = z.object({
   headBranch: z.string().min(1),
   baseBranch: z.string().min(1),
   status: pullRequestStatusSchema,
-  createdAt: z.string().datetime(),
-  mergedAt: z.string().datetime().nullable()
+  createdAt: z.string().datetime({ offset: true }),
+  mergedAt: z.string().datetime({ offset: true }).nullable()
 });
 
 export const sessionSchema = z.object({ authenticated: z.boolean() });
@@ -100,11 +100,27 @@ export const songProductionSchema = z.object({
   parts: z.array(musicPartSchema)
 });
 
+export const branchSummarySchema = z.object({
+  songId: z.string().uuid(),
+  role: agentRoleSchema,
+  branch: z.string().min(1),
+  worktreePath: z.string().min(1),
+  status: z.enum(["ready", "missing"]),
+  createdAt: z.string().datetime({ offset: true })
+});
+
+export const songHistorySchema = z.object({
+  commits: z.array(commitSummarySchema),
+  branches: z.array(branchSummarySchema)
+});
+
 export type Song = z.infer<typeof songSchema>;
 export type CreateSong = z.infer<typeof createSongSchema>;
 export type MusicEvent = z.infer<typeof musicEventSchema>;
 export type MusicPart = z.infer<typeof musicPartSchema>;
 export type SongProduction = z.infer<typeof songProductionSchema>;
+export type BranchSummary = z.infer<typeof branchSummarySchema>;
+export type SongHistory = z.infer<typeof songHistorySchema>;
 export type SongStatus = z.infer<typeof songStatusSchema>;
 export type JobStatus = z.infer<typeof jobStatusSchema>;
 export type AgentJob = z.infer<typeof agentJobSchema>;

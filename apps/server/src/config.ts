@@ -7,7 +7,9 @@ const environmentSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3001),
   WEB_ORIGIN: z.string().url().default("http://localhost:5173"),
   DATABASE_PATH: z.string().min(1).default("./data/collabjam.db"),
-  SONGS_PATH: z.string().min(1).default("./data/songs"),
+  GIT_REPO_PATH: z.string().min(1).default("."),
+  SONGS_PATH: z.string().min(1).default("./songs"),
+  WORKTREES_PATH: z.string().min(1).default("./worktrees"),
   ADMIN_PASSWORD: z.string().min(8),
   SESSION_SECRET: z.string().min(32)
 });

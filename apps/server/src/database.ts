@@ -52,10 +52,20 @@ export function createDatabase(path: string): DatabaseSync {
     CREATE TABLE IF NOT EXISTS commits (
       sha TEXT PRIMARY KEY,
       song_id TEXT NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
-      role TEXT NOT NULL,
+      role TEXT,
       branch TEXT NOT NULL,
       message TEXT NOT NULL,
       committed_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS git_branches (
+      song_id TEXT NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+      role TEXT NOT NULL,
+      branch TEXT NOT NULL,
+      worktree_path TEXT NOT NULL,
+      status TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (song_id, role)
     );
 
     CREATE TABLE IF NOT EXISTS pull_requests (

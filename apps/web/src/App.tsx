@@ -11,6 +11,7 @@ import type {
   CreateSong,
   Session,
   Song,
+  SongHistory,
   SongProduction
 } from "@collabjam/shared";
 import { playProduction } from "./player";
@@ -33,6 +34,7 @@ function Studio() {
   const [session, setSession] = useState<Session>({ authenticated: false });
   const [songs, setSongs] = useState<Song[]>([]);
   const [production, setProduction] = useState<SongProduction | null>(null);
+  const [history, setHistory] = useState<SongHistory | null>(null);
   const [modal, setModal] = useState<"login" | "song" | null>(null);
   const [error, setError] = useState("");
   const [playing, setPlaying] = useState(false);
@@ -48,7 +50,18 @@ function Studio() {
     if (data.songs[0]) {
       const detail = await fetch(`/api/songs/${data.songs[0].slug}`);
       setProduction((await detail.json()) as SongProduction);
+      const historyResponse = await fetch(
+        `/api/songs/${data.songs[0].slug}/history`
+      );
+      setHistory((await historyResponse.json()) as SongHistory);
     }
+  }
+
+  async function loadSong(slug: string) {
+    const response = await fetch(`/api/songs/${slug}`);
+    setProduction((await response.json()) as SongProduction);
+    const historyResponse = await fetch(`/api/songs/${slug}/history`);
+    setHistory((await historyResponse.json()) as SongHistory);
   }
 
   useEffect(() => {
@@ -95,8 +108,11 @@ function Studio() {
       body: JSON.stringify(input)
     });
     if (!response.ok) return setError("Could not create that song.");
-    const created = (await response.json()) as SongProduction;
+    const created = (await response.json()) as SongProduction & {
+      history: SongHistory;
+    };
     setProduction(created);
+    setHistory(created.history);
     setSongs((current) => [created.song, ...current]);
     setModal(null);
   }
@@ -183,10 +199,7 @@ function Studio() {
                 <select
                   value={song?.slug}
                   onChange={async (event) => {
-                    const response = await fetch(
-                      `/api/songs/${event.target.value}`
-                    );
-                    setProduction(await response.json());
+                    await loadSong(event.target.value);
                   }}
                 >
                   {songs.map((item) => (
@@ -259,9 +272,12 @@ function Studio() {
                         {part ? `${part.events.length} events` : "Not created"}
                       </b>
                       <small>
-                        {part
-                          ? `${part.bars} bars · schema v${part.version}`
-                          : "Create a song to seed parts"}
+                        {history?.branches.find(
+                          (branch) => branch.role === role
+                        )?.branch ??
+                          (part
+                            ? `${part.bars} bars · schema v${part.version}`
+                            : "Create a song to seed parts")}
                       </small>
                     </span>
                     <button
@@ -279,28 +295,40 @@ function Studio() {
         </section>
 
         <section id="history" className="workflow">
-          <p className="eyebrow">Phase 2 data flow</p>
-          <h2>From validated JSON to sound.</h2>
+          <p className="eyebrow">Git history</p>
+          <h2>Worktrees are ready for agents.</h2>
           <div className="steps">
             <div>
               <b>01</b>
-              <h3>Describe</h3>
-              <p>Set title, style, tempo, and musical key.</p>
+              <h3>Main commit</h3>
+              <p>
+                {history?.commits[0]?.message ??
+                  "Create a song to commit its seed files."}
+              </p>
             </div>
             <div>
               <b>02</b>
-              <h3>Validate</h3>
-              <p>Zod guards every song and musical event.</p>
+              <h3>Rhythm</h3>
+              <p>
+                {history?.branches.find((branch) => branch.role === "rhythm")
+                  ?.status ?? "pending"}
+              </p>
             </div>
             <div>
               <b>03</b>
-              <h3>Persist</h3>
-              <p>Git-ready files sit under the song directory.</p>
+              <h3>Harmony</h3>
+              <p>
+                {history?.branches.find((branch) => branch.role === "harmony")
+                  ?.status ?? "pending"}
+              </p>
             </div>
             <div>
               <b>04</b>
-              <h3>Perform</h3>
-              <p>Tone.js schedules the merged production.</p>
+              <h3>Bass</h3>
+              <p>
+                {history?.branches.find((branch) => branch.role === "bass")
+                  ?.status ?? "pending"}
+              </p>
             </div>
           </div>
         </section>
