@@ -175,6 +175,7 @@ export function createGitHubWorkflow(
        (number, song_id, role, title, url, head_branch, base_branch, status, created_at, merged_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
+    git.pushMainIfMissing(github.remote);
 
     for (const role of roles) {
       if (existing.some((pullRequest) => pullRequest.role === role)) continue;

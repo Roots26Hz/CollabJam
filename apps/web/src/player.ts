@@ -12,10 +12,11 @@ export async function playProduction(
   muted: Set<AgentRole>,
   onStop: () => void
 ): Promise<Player> {
-  await Promise.race([
-    Tone.start(),
-    new Promise<void>((resolve) => window.setTimeout(resolve, 500))
-  ]);
+  await Tone.start();
+  await Tone.loaded();
+  if (Tone.getContext().state !== "running") {
+    await Tone.getContext().resume();
+  }
   Tone.getTransport().stop();
   Tone.getTransport().cancel();
   Tone.getTransport().bpm.value = song.bpm;

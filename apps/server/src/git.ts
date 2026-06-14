@@ -244,6 +244,12 @@ export function createGitEngine(
     return branch;
   }
 
+  function pushMainIfMissing(remote: string) {
+    const remoteMain = runGit(root, ["ls-remote", "--heads", remote, "main"]);
+    if (remoteMain) return;
+    runGit(root, ["push", "-u", remote, "main:main"]);
+  }
+
   function mergeBranchToMain(song: Song, role: AgentRole): CommitSummary {
     const branch = getBranch(song.id, role);
     const relativePartPath = join("songs", song.slug, "parts", `${role}.json`);
@@ -285,6 +291,7 @@ export function createGitEngine(
     getHistory,
     getBranch,
     commitAgentPart,
+    pushMainIfMissing,
     pushBranch,
     mergeBranchToMain
   };

@@ -41,6 +41,17 @@ function formatTime(value: string | null) {
   }).format(new Date(value));
 }
 
+async function responseError(response: Response, fallback: string) {
+  try {
+    const body = (await response.json()) as {
+      error?: { message?: string };
+    };
+    return body.error?.message ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function Studio() {
   const [session, setSession] = useState<Session>({ authenticated: false });
   const [songs, setSongs] = useState<Song[]>([]);
@@ -249,7 +260,12 @@ function Studio() {
       { method: "POST", credentials: "include" }
     );
     if (!response.ok) {
-      setError("Could not create GitHub PRs. Check GitHub configuration.");
+      setError(
+        await responseError(
+          response,
+          "Could not create GitHub PRs. Check GitHub configuration."
+        )
+      );
       return;
     }
     const data = (await response.json()) as {
@@ -266,9 +282,12 @@ function Studio() {
     });
     if (!response.ok) {
       setError(
-        action === "merge"
-          ? "Could not merge that PR."
-          : "Could not move that PR to review."
+        await responseError(
+          response,
+          action === "merge"
+            ? "Could not merge that PR."
+            : "Could not move that PR to review."
+        )
       );
       return;
     }
