@@ -5,3 +5,5 @@ worktrees/
 .agents/
 .claude/
 package-lock.json
+Dockerfile
+scripts/*.sh

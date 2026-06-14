@@ -21,8 +21,7 @@ This foundation includes:
 - GitHub PR creation for each agent branch
 - Human-controlled PR review and merge actions
 - Live studio pipeline, commit timeline, review status, and final mix readiness
-
-Railway deployment is intentionally deferred to a later phase.
+- Railway-ready Docker deployment with persistent SQLite, songs, worktrees, and runtime Git repo
 
 ## Setup
 
@@ -44,6 +43,54 @@ GITHUB_REMOTE=origin
 ```
 
 The token needs permission to create and merge pull requests. Branches are pushed to `GITHUB_REMOTE` before PR creation.
+
+## Railway Deployment
+
+This project deploys as one full-stack Railway service. The Docker image builds the React app, compiles the Express API, installs `git`, and seeds a persistent runtime Git repository under `/data/repo`.
+
+1. Push this repository to GitHub.
+2. Create a Railway project from the GitHub repository.
+3. Add a Railway volume mounted at `/data`.
+4. Set the required environment variables:
+
+```bash
+NODE_ENV=production
+PORT=3001
+DATABASE_PATH=/data/collabjam.db
+GIT_REPO_PATH=/data/repo
+SONGS_PATH=/data/repo/songs
+WORKTREES_PATH=/data/worktrees
+WEB_ORIGIN=https://your-railway-domain.up.railway.app
+ADMIN_PASSWORD=choose-a-long-password
+SESSION_SECRET=generate-at-least-32-random-characters
+AGENT_RUNNER=mock
+```
+
+5. Deploy. Railway uses `railway.json` and the root `Dockerfile`; health checks target `/api/health`.
+
+For real GitHub PRs on Railway, also set:
+
+```bash
+GITHUB_TOKEN=github_pat_or_token
+GITHUB_OWNER=your-org-or-user
+GITHUB_REPO=your-demo-repo
+GITHUB_REMOTE=origin
+GIT_AUTHOR_NAME=CollabJam Studio
+GIT_AUTHOR_EMAIL=collabjam@example.local
+```
+
+The startup script configures the runtime repo's `origin` remote and provides the token to `git push` through `GIT_ASKPASS`, so the token is not written into the Git remote URL.
+
+For hosted Codex agents, switch:
+
+```bash
+AGENT_RUNNER=codex
+CODEX_COMMAND=codex
+CODEX_TIMEOUT_MS=300000
+OPENAI_API_KEY=your-openai-api-key
+```
+
+The Docker image installs the Codex CLI by default. Keep `AGENT_RUNNER=mock` for a predictable public demo that does not consume Codex credits.
 
 ## Commands
 
@@ -76,4 +123,4 @@ packages/shared  Runtime schemas and shared TypeScript types
 6. Studio UI: live history, reviews, and final production
 7. Railway: Docker deployment with persistent storage
 
-Phases 1-6 are implemented. The default runner is `AGENT_RUNNER=mock` so local demos and tests do not consume Codex credits; set `AGENT_RUNNER=codex` to use the configured `CODEX_COMMAND`.
+Phases 1-7 are implemented. The default runner is `AGENT_RUNNER=mock` so local demos and tests do not consume Codex credits; set `AGENT_RUNNER=codex` to use the configured `CODEX_COMMAND`.
