@@ -41,7 +41,8 @@ export function createApp(config: AppConfig, database: DatabaseSync) {
   const songs = createSongStore(database, config.SONGS_PATH, git);
   const agents = createAgentOrchestrator(database, git, {
     runner: config.AGENT_RUNNER,
-    codexCommand: config.CODEX_COMMAND
+    codexCommand: config.CODEX_COMMAND,
+    codexTimeoutMs: config.CODEX_TIMEOUT_MS
   });
   const pullRequests = createGitHubWorkflow(database, git, config);
 

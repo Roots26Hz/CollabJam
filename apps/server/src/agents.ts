@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import type { DatabaseSync } from "node:sqlite";
 import {
@@ -127,7 +128,8 @@ async function runCodex(
   role: AgentRole,
   song: Song,
   worktreePath: string,
-  relativePartPath: string
+  relativePartPath: string,
+  timeoutMs: number
 ) {
   const prompt = [
     `You are the ${role} music agent for CollabJam Studio.`,
@@ -137,20 +139,74 @@ async function runCodex(
     "Return after saving the file."
   ].join("\n");
 
+  const outputPath = join(
+    tmpdir(),
+    `collabjam-codex-${song.slug}-${role}-${randomUUID()}.txt`
+  );
+
   await new Promise<void>((resolve, reject) => {
     const child = spawn(
       command,
-      ["exec", "--cd", worktreePath, "--ephemeral", prompt],
+      [
+        "exec",
+        "--cd",
+        worktreePath,
+        "--sandbox",
+        "workspace-write",
+        "--ephemeral",
+        "--output-last-message",
+        outputPath,
+        prompt
+      ],
       { stdio: ["ignore", "pipe", "pipe"] }
     );
+    let settled = false;
+    let closed = false;
+    let stdout = "";
     let stderr = "";
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.kill("SIGTERM");
+      setTimeout(() => {
+        if (!closed) child.kill("SIGKILL");
+      }, 2_000);
+      reject(new Error(`Codex ${role} agent timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
     child.stderr.on("data", (chunk: Buffer) => {
       stderr += chunk.toString();
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+    });
     child.on("close", (code) => {
+      closed = true;
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      const lastMessage = existsSync(outputPath)
+        ? readFileSync(outputPath, "utf8").trim()
+        : "";
       if (code === 0) resolve();
-      else reject(new Error(stderr.trim() || `Codex exited with ${code}`));
+      else
+        reject(
+          new Error(
+            [
+              lastMessage,
+              stderr.trim(),
+              stdout.trim(),
+              `Codex exited with ${code}`
+            ]
+              .filter(Boolean)
+              .join("\n")
+          )
+        );
     });
   });
 }
@@ -158,7 +214,7 @@ async function runCodex(
 export function createAgentOrchestrator(
   database: DatabaseSync,
   git: GitEngine,
-  options: { runner: RunnerMode; codexCommand: string }
+  options: { runner: RunnerMode; codexCommand: string; codexTimeoutMs: number }
 ) {
   const events = new EventEmitter();
 
@@ -247,40 +303,54 @@ export function createAgentOrchestrator(
     song: Song,
     role: AgentRole
   ) {
-    const relativePartPath = join("songs", song.slug, "parts", `${role}.json`);
-    const branch = git.getBranch(song.id, role);
-    const targetPath = join(branch.worktreePath, relativePartPath);
-    const basePart = musicPartSchema.parse(
-      JSON.parse(readFileSync(targetPath, "utf8"))
-    );
-
-    updateRun(runId, "running");
-    addEvent(jobId, role, "running", eventMessage(role, "running"));
-    if (options.runner === "mock") writeMockPart(basePart, role, targetPath);
-    else
-      await runCodex(
-        options.codexCommand,
-        role,
-        song,
-        branch.worktreePath,
-        relativePartPath
+    try {
+      const relativePartPath = join(
+        "songs",
+        song.slug,
+        "parts",
+        `${role}.json`
+      );
+      const branch = git.getBranch(song.id, role);
+      const targetPath = join(branch.worktreePath, relativePartPath);
+      const basePart = musicPartSchema.parse(
+        JSON.parse(readFileSync(targetPath, "utf8"))
       );
 
-    updateRun(runId, "validating");
-    addEvent(jobId, role, "validating", eventMessage(role, "validating"));
-    const generated = musicPartSchema.parse(
-      JSON.parse(readFileSync(targetPath, "utf8"))
-    );
-    if (generated.role !== role) {
-      throw new Error(`Expected ${role} part, received ${generated.role}`);
-    }
+      updateRun(runId, "running");
+      addEvent(jobId, role, "running", eventMessage(role, "running"));
+      if (options.runner === "mock") writeMockPart(basePart, role, targetPath);
+      else
+        await runCodex(
+          options.codexCommand,
+          role,
+          song,
+          branch.worktreePath,
+          relativePartPath,
+          options.codexTimeoutMs
+        );
 
-    const message = `${role[0]!.toUpperCase()}${role.slice(1)} agent: generate initial pattern v1`;
-    const commit = git.commitAgentPart(song, role, relativePartPath, message);
-    if (!commit)
-      throw new Error(`${role} agent did not change ${relativePartPath}`);
-    updateRun(runId, "committed");
-    addEvent(jobId, role, "committed", eventMessage(role, "committed"));
+      updateRun(runId, "validating");
+      addEvent(jobId, role, "validating", eventMessage(role, "validating"));
+      const generated = musicPartSchema.parse(
+        JSON.parse(readFileSync(targetPath, "utf8"))
+      );
+      if (generated.role !== role) {
+        throw new Error(`Expected ${role} part, received ${generated.role}`);
+      }
+
+      const message = `${role[0]!.toUpperCase()}${role.slice(1)} agent: generate initial pattern v1`;
+      const commit = git.commitAgentPart(song, role, relativePartPath, message);
+      if (!commit)
+        throw new Error(`${role} agent did not change ${relativePartPath}`);
+      updateRun(runId, "committed");
+      addEvent(jobId, role, "committed", eventMessage(role, "committed"));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : `${role} agent failed.`;
+      updateRun(runId, "failed", message);
+      addEvent(jobId, role, "failed", message);
+      throw error;
+    }
   }
 
   async function runJob(jobId: string, song: Song) {

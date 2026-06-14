@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const optionalEnvironmentValue = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(1).optional()
+);
+
 const environmentSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
@@ -12,9 +17,10 @@ const environmentSchema = z.object({
   WORKTREES_PATH: z.string().min(1).default("./worktrees"),
   AGENT_RUNNER: z.enum(["mock", "codex"]).default("mock"),
   CODEX_COMMAND: z.string().min(1).default("codex"),
-  GITHUB_TOKEN: z.string().min(1).optional(),
-  GITHUB_OWNER: z.string().min(1).optional(),
-  GITHUB_REPO: z.string().min(1).optional(),
+  CODEX_TIMEOUT_MS: z.coerce.number().int().positive().default(300000),
+  GITHUB_TOKEN: optionalEnvironmentValue,
+  GITHUB_OWNER: optionalEnvironmentValue,
+  GITHUB_REPO: optionalEnvironmentValue,
   GITHUB_REMOTE: z.string().min(1).default("origin"),
   ADMIN_PASSWORD: z.string().min(8),
   SESSION_SECRET: z.string().min(32)

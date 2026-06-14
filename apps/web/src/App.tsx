@@ -110,14 +110,26 @@ function Studio() {
     event.preventDefault();
     setError("");
     const form = new FormData(event.currentTarget);
-    const response = await fetch("/api/session/login", {
-      method: "POST",
-      credentials: "include",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ password: form.get("password") })
-    });
-    if (!response.ok)
-      return setError("That password did not unlock the studio.");
+    let response: Response;
+    try {
+      response = await fetch("/api/session/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: form.get("password") })
+      });
+    } catch {
+      setError("The studio API is unavailable.");
+      return;
+    }
+    if (!response.ok) {
+      setError(
+        response.status === 401
+          ? "That password did not unlock the studio."
+          : "The studio API is unavailable."
+      );
+      return;
+    }
     setSession({ authenticated: true });
     setModal(null);
   }

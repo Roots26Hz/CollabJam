@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { config as loadEnvironment } from "dotenv";
 import { createApp } from "./app.js";
 import { parseConfig } from "./config.js";
-import { createDatabase } from "./database.js";
+import { createDatabase, recoverInterruptedJobs } from "./database.js";
 
 const projectRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -24,6 +24,7 @@ const config = {
   WORKTREES_PATH: projectPath(parsedConfig.WORKTREES_PATH)
 };
 const database = createDatabase(config.DATABASE_PATH);
+recoverInterruptedJobs(database);
 const app = createApp(config, database);
 
 const server = app.listen(config.PORT, () => {

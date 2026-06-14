@@ -101,3 +101,18 @@ export function createDatabase(path: string): DatabaseSync {
 
   return database;
 }
+
+export function recoverInterruptedJobs(database: DatabaseSync) {
+  const now = new Date().toISOString();
+  const message = "Agent job was interrupted before the server restarted.";
+  database
+    .prepare(
+      "UPDATE agent_runs SET status = 'failed', error = ?, completed_at = ? WHERE status IN ('queued', 'running', 'validating')"
+    )
+    .run(message, now);
+  database
+    .prepare(
+      "UPDATE jobs SET status = 'failed', error = ?, completed_at = ? WHERE status IN ('queued', 'running')"
+    )
+    .run(message, now);
+}

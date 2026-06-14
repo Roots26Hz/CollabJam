@@ -36,6 +36,7 @@ function createTestConfig(): AppConfig {
     WORKTREES_PATH: join(root, "worktrees"),
     AGENT_RUNNER: "mock",
     CODEX_COMMAND: "codex",
+    CODEX_TIMEOUT_MS: 300000,
     GITHUB_TOKEN: "github-token",
     GITHUB_OWNER: "collabjam",
     GITHUB_REPO: "studio",
