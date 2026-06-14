@@ -10,6 +10,8 @@ const environmentSchema = z.object({
   GIT_REPO_PATH: z.string().min(1).default("."),
   SONGS_PATH: z.string().min(1).default("./songs"),
   WORKTREES_PATH: z.string().min(1).default("./worktrees"),
+  AGENT_RUNNER: z.enum(["mock", "codex"]).default("mock"),
+  CODEX_COMMAND: z.string().min(1).default("codex"),
   ADMIN_PASSWORD: z.string().min(8),
   SESSION_SECRET: z.string().min(32)
 });

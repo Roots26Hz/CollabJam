@@ -30,9 +30,24 @@ function createTestConfig(): AppConfig {
     GIT_REPO_PATH: repo,
     SONGS_PATH: join(repo, "songs"),
     WORKTREES_PATH: join(root, "worktrees"),
+    AGENT_RUNNER: "mock",
+    CODEX_COMMAND: "codex",
     ADMIN_PASSWORD: "correct-horse",
     SESSION_SECRET: "a-test-secret-that-is-at-least-32-characters"
   };
+}
+
+type TestAgent = ReturnType<typeof request.agent>;
+
+async function waitForJob(agent: TestAgent, jobId: string) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const response = await agent.get(`/api/jobs/${jobId}`).expect(200);
+    if (["completed", "failed"].includes(response.body.job.status)) {
+      return response.body;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Job ${jobId} did not finish`);
 }
 
 describe("server API", () => {
@@ -132,6 +147,73 @@ describe("server API", () => {
     expect(git(config.GIT_REPO_PATH, ["worktree", "list"])).toContain(
       join(config.WORKTREES_PATH, "neon-drive", "rhythm")
     );
+  });
+
+  it("runs three mock agents in parallel and commits each role branch", async () => {
+    const agent = request.agent(app);
+    await agent
+      .post("/api/session/login")
+      .send({ password: "correct-horse" })
+      .expect(200);
+    await agent
+      .post("/api/songs")
+      .send({
+        title: "Agent Jam",
+        stylePrompt: "Tight parallel funk",
+        bpm: 118,
+        key: "D minor",
+        timeSignature: "4/4"
+      })
+      .expect(201);
+
+    const unauthorized = await request(app)
+      .post("/api/songs/agent-jam/generate")
+      .send()
+      .expect(401);
+    expect(unauthorized.body.error.code).toBe("AUTHENTICATION_REQUIRED");
+
+    const started = await agent
+      .post("/api/songs/agent-jam/generate")
+      .send()
+      .expect(202);
+    const summary = await waitForJob(agent, started.body.job.id);
+    expect(summary.job.status).toBe("completed");
+    expect(summary.runs.map((run: { status: string }) => run.status)).toEqual([
+      "committed",
+      "committed",
+      "committed"
+    ]);
+
+    const events = await agent
+      .get(`/api/jobs/${started.body.job.id}/events`)
+      .buffer(true)
+      .parse((response, callback) => {
+        let body = "";
+        response.on("data", (chunk: Buffer) => {
+          body += chunk.toString();
+          if (body.includes("All agent branches are ready for review.")) {
+            (response as unknown as { destroy: () => void }).destroy();
+          }
+        });
+        response.on("close", () => callback(null, body));
+      });
+    expect(String(events.body)).toContain("Parallel agents started.");
+
+    const history = await agent.get("/api/songs/agent-jam/history").expect(200);
+    const roleCommits = history.body.commits.filter(
+      (commit: { role: string | null }) => commit.role
+    );
+    expect(roleCommits).toHaveLength(3);
+    expect(
+      roleCommits.map((commit: { message: string }) => commit.message).sort()
+    ).toEqual([
+      "Bass agent: generate initial pattern v1",
+      "Harmony agent: generate initial pattern v1",
+      "Rhythm agent: generate initial pattern v1"
+    ]);
+    expect(
+      git(config.GIT_REPO_PATH, ["log", "--oneline", "agent-jam/rhythm", "-1"])
+    ).toContain("Rhythm agent: generate initial pattern v1");
   });
 
   it("keeps unknown API routes as structured JSON errors", async () => {

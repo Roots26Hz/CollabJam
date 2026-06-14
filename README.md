@@ -15,8 +15,11 @@ This foundation includes:
 - Git-ready song and music-part JSON files
 - Song creation and public production APIs
 - Tone.js playback with rhythm, harmony, and bass mute controls
+- Isolated Git worktrees for rhythm, harmony, and bass branches
+- Parallel agent job orchestration with persisted event history
+- Mock agent runner for demos and tests, plus a Codex CLI runner option
 
-Git worktrees, Codex execution, and GitHub pull requests are intentionally deferred to later phases.
+Real GitHub pull requests and human-controlled merges are intentionally deferred to later phases.
 
 ## Setup
 
@@ -58,3 +61,5 @@ packages/shared  Runtime schemas and shared TypeScript types
 5. GitHub workflow: real pull requests and human-controlled merges
 6. Studio UI: live history, reviews, and final production
 7. Railway: Docker deployment with persistent storage
+
+Phases 1-4 are implemented. The default runner is `AGENT_RUNNER=mock` so local demos and tests do not consume Codex credits; set `AGENT_RUNNER=codex` to use the configured `CODEX_COMMAND`.

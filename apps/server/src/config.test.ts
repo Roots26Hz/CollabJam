@@ -18,5 +18,7 @@ describe("environment configuration", () => {
     expect(config.GIT_REPO_PATH).toBe(".");
     expect(config.SONGS_PATH).toBe("./songs");
     expect(config.WORKTREES_PATH).toBe("./worktrees");
+    expect(config.AGENT_RUNNER).toBe("mock");
+    expect(config.CODEX_COMMAND).toBe("codex");
   });
 });

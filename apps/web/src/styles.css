@@ -261,6 +261,18 @@ h1 em {
   grid-template-columns: repeat(3, 1fr);
   gap: 18px;
 }
+.agent-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: -12px 0 28px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.agent-toolbar .primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .agent-card {
   min-height: 340px;
   padding: 23px;
@@ -366,6 +378,28 @@ h1 em {
   color: #6c665e;
   font-size: 13px;
   line-height: 1.6;
+}
+.event-log {
+  display: grid;
+  gap: 8px;
+  margin-top: 32px;
+  padding: 22px;
+  border-radius: 12px;
+  background: #111824;
+  color: var(--paper);
+}
+.event-log p {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.event-log b {
+  min-width: 70px;
+  color: var(--mint);
+  font: 500 11px "DM Mono";
+  text-transform: uppercase;
 }
 .mix-banner {
   margin: 80px 8vw;

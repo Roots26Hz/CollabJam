@@ -40,6 +40,15 @@ export const songSchema = z.object({
 export const agentJobSchema = z.object({
   id: z.string().uuid(),
   songId: z.string().uuid(),
+  status: jobStatusSchema,
+  error: z.string().nullable(),
+  createdAt: z.string().datetime({ offset: true }),
+  completedAt: z.string().datetime({ offset: true }).nullable()
+});
+
+export const agentRunSchema = z.object({
+  id: z.string().uuid(),
+  jobId: z.string().uuid(),
   role: agentRoleSchema,
   status: jobStatusSchema,
   error: z.string().nullable(),
@@ -114,6 +123,20 @@ export const songHistorySchema = z.object({
   branches: z.array(branchSummarySchema)
 });
 
+export const agentEventSchema = z.object({
+  id: z.number().int().nonnegative(),
+  jobId: z.string().uuid(),
+  role: agentRoleSchema.nullable(),
+  status: jobStatusSchema,
+  message: z.string(),
+  createdAt: z.string().datetime({ offset: true })
+});
+
+export const agentJobSummarySchema = z.object({
+  job: agentJobSchema,
+  runs: z.array(agentRunSchema)
+});
+
 export type Song = z.infer<typeof songSchema>;
 export type CreateSong = z.infer<typeof createSongSchema>;
 export type MusicEvent = z.infer<typeof musicEventSchema>;
@@ -124,6 +147,9 @@ export type SongHistory = z.infer<typeof songHistorySchema>;
 export type SongStatus = z.infer<typeof songStatusSchema>;
 export type JobStatus = z.infer<typeof jobStatusSchema>;
 export type AgentJob = z.infer<typeof agentJobSchema>;
+export type AgentRun = z.infer<typeof agentRunSchema>;
+export type AgentEvent = z.infer<typeof agentEventSchema>;
+export type AgentJobSummary = z.infer<typeof agentJobSummarySchema>;
 export type CommitSummary = z.infer<typeof commitSummarySchema>;
 export type PullRequestSummary = z.infer<typeof pullRequestSummarySchema>;
 export type PullRequestStatus = z.infer<typeof pullRequestStatusSchema>;

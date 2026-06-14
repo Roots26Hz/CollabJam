@@ -6,6 +6,7 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import { pinoHttp } from "pino-http";
+import { createAgentOrchestrator } from "./agents.js";
 import type { AppConfig } from "./config.js";
 import { errorHandler, notFound } from "./errors.js";
 import { createGitEngine } from "./git.js";
@@ -37,6 +38,10 @@ export function createApp(config: AppConfig, database: DatabaseSync) {
     config.WORKTREES_PATH
   );
   const songs = createSongStore(database, config.SONGS_PATH, git);
+  const agents = createAgentOrchestrator(database, git, {
+    runner: config.AGENT_RUNNER,
+    codexCommand: config.CODEX_COMMAND
+  });
 
   app.get("/api/health", (_request, response) => {
     database.prepare("SELECT 1").get();
@@ -63,6 +68,30 @@ export function createApp(config: AppConfig, database: DatabaseSync) {
   });
   app.post("/api/songs", sessions.requireAdmin, (request, response) => {
     response.status(201).json(songs.createSong(request.body));
+  });
+  app.post(
+    "/api/songs/:slug/generate",
+    sessions.requireAdmin,
+    (request, response) => {
+      response.status(202).json(agents.start(String(request.params.slug)));
+    }
+  );
+  app.get("/api/jobs/:jobId", (request, response) => {
+    response.json(agents.getSummary(String(request.params.jobId)));
+  });
+  app.get("/api/jobs/:jobId/events", (request, response) => {
+    response.setHeader("Content-Type", "text/event-stream");
+    response.setHeader("Cache-Control", "no-cache");
+    response.setHeader("Connection", "keep-alive");
+    response.flushHeaders?.();
+
+    const send = (event: unknown) => {
+      response.write(`data: ${JSON.stringify(event)}\n\n`);
+    };
+    const jobId = String(request.params.jobId);
+    for (const event of agents.listEvents(jobId)) send(event);
+    const unsubscribe = agents.subscribe(jobId, send);
+    request.on("close", unsubscribe);
   });
 
   app.use("/api", notFound);

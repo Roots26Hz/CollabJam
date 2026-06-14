@@ -83,6 +83,22 @@ function rowToBranch(row: BranchRow): BranchSummary {
   });
 }
 
+function commitRow(database: DatabaseSync, row: CommitRow): CommitSummary {
+  database
+    .prepare(
+      "INSERT OR REPLACE INTO commits (sha, song_id, role, branch, message, committed_at) VALUES (?, ?, ?, ?, ?, ?)"
+    )
+    .run(
+      row.sha,
+      row.song_id,
+      row.role,
+      row.branch,
+      row.message,
+      row.committed_at
+    );
+  return rowToCommit(row);
+}
+
 export function createGitEngine(
   database: DatabaseSync,
   repoPath: string,
@@ -109,12 +125,7 @@ export function createGitEngine(
     runGit(root, ["commit", "-m", message]);
     const sha = runGit(root, ["rev-parse", "HEAD"]);
     const committedAt = runGit(root, ["show", "-s", "--format=%cI", sha]);
-    database
-      .prepare(
-        "INSERT INTO commits (sha, song_id, role, branch, message, committed_at) VALUES (?, ?, ?, ?, ?, ?)"
-      )
-      .run(sha, song.id, null, "main", message, committedAt);
-    return rowToCommit({
+    return commitRow(database, {
       sha,
       song_id: song.id,
       role: null,
@@ -174,5 +185,56 @@ export function createGitEngine(
     return songHistorySchema.parse({ commits, branches });
   }
 
-  return { commitSongBase, createWorktrees, getHistory };
+  function getBranch(songId: string, role: AgentRole): BranchSummary {
+    const row = database
+      .prepare("SELECT * FROM git_branches WHERE song_id = ? AND role = ?")
+      .get(songId, role) as BranchRow | undefined;
+    if (!row) throw new Error(`Missing ${role} worktree for song ${songId}`);
+    return rowToBranch(row);
+  }
+
+  function commitAgentPart(
+    song: Song,
+    role: AgentRole,
+    relativePartPath: string,
+    message: string
+  ): CommitSummary | null {
+    const branch = getBranch(song.id, role);
+    if (branch.status !== "ready") {
+      throw new Error(`${role} worktree is not ready`);
+    }
+    runGit(branch.worktreePath, ["add", relativePartPath]);
+    const status = runGit(branch.worktreePath, [
+      "status",
+      "--porcelain",
+      "--",
+      relativePartPath
+    ]);
+    if (!status) return null;
+
+    runGit(branch.worktreePath, ["commit", "-m", message]);
+    const sha = runGit(branch.worktreePath, ["rev-parse", "HEAD"]);
+    const committedAt = runGit(branch.worktreePath, [
+      "show",
+      "-s",
+      "--format=%cI",
+      sha
+    ]);
+    return commitRow(database, {
+      sha,
+      song_id: song.id,
+      role,
+      branch: branch.branch,
+      message,
+      committed_at: committedAt
+    });
+  }
+
+  return {
+    commitSongBase,
+    createWorktrees,
+    getHistory,
+    getBranch,
+    commitAgentPart
+  };
 }

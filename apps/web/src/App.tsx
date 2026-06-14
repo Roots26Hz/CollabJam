@@ -8,6 +8,8 @@ import {
 import { Link, Route, Routes } from "react-router-dom";
 import type {
   AgentRole,
+  AgentEvent,
+  AgentJobSummary,
   CreateSong,
   Session,
   Song,
@@ -35,6 +37,8 @@ function Studio() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [production, setProduction] = useState<SongProduction | null>(null);
   const [history, setHistory] = useState<SongHistory | null>(null);
+  const [agentJob, setAgentJob] = useState<AgentJobSummary | null>(null);
+  const [agentEvents, setAgentEvents] = useState<AgentEvent[]>([]);
   const [modal, setModal] = useState<"login" | "song" | null>(null);
   const [error, setError] = useState("");
   const [playing, setPlaying] = useState(false);
@@ -61,6 +65,14 @@ function Studio() {
     const response = await fetch(`/api/songs/${slug}`);
     setProduction((await response.json()) as SongProduction);
     const historyResponse = await fetch(`/api/songs/${slug}/history`);
+    setHistory((await historyResponse.json()) as SongHistory);
+  }
+
+  async function refreshHistory() {
+    if (!production) return;
+    const historyResponse = await fetch(
+      `/api/songs/${production.song.slug}/history`
+    );
     setHistory((await historyResponse.json()) as SongHistory);
   }
 
@@ -147,6 +159,52 @@ function Studio() {
       player.current?.setMuted(role, next.has(role));
       return next;
     });
+  }
+
+  async function runAgents() {
+    if (!production) return;
+    setError("");
+    const response = await fetch(
+      `/api/songs/${production.song.slug}/generate`,
+      {
+        method: "POST",
+        credentials: "include"
+      }
+    );
+    if (!response.ok) {
+      setError("Could not start the agent run.");
+      return;
+    }
+    const summary = (await response.json()) as AgentJobSummary;
+    setAgentJob(summary);
+    setAgentEvents([]);
+    const source = new EventSource(`/api/jobs/${summary.job.id}/events`);
+    source.onmessage = (message) => {
+      const event = JSON.parse(message.data) as AgentEvent;
+      setAgentEvents((current) =>
+        current.some((item) => item.id === event.id)
+          ? current
+          : [...current, event]
+      );
+      if (event.status === "completed" || event.status === "failed") {
+        setAgentJob((current) =>
+          current
+            ? {
+                ...current,
+                job: {
+                  ...current.job,
+                  status: event.status,
+                  error: event.status === "failed" ? event.message : null,
+                  completedAt: event.createdAt
+                }
+              }
+            : current
+        );
+        source.close();
+        void refreshHistory();
+      }
+    };
+    source.onerror = () => source.close();
   }
 
   const song = production?.song;
@@ -238,6 +296,26 @@ function Studio() {
               <h2>Three voices. One schema.</h2>
             </div>
             <span className="phase-pill">Tone.js ready</span>
+          </div>
+          <div className="agent-toolbar">
+            <button
+              className="primary"
+              disabled={
+                !production ||
+                !session.authenticated ||
+                ["queued", "running", "validating"].includes(
+                  agentJob?.job.status ?? ""
+                )
+              }
+              onClick={() => void runAgents()}
+            >
+              Run 3 agents
+            </button>
+            <span>
+              {agentJob
+                ? `Job ${agentJob.job.status}`
+                : "Agents commit to isolated branches."}
+            </span>
           </div>
           <div className="agent-grid">
             {(Object.keys(roleMeta) as AgentRole[]).map((role, index) => {
@@ -331,6 +409,16 @@ function Studio() {
               </p>
             </div>
           </div>
+          {agentEvents.length > 0 && (
+            <div className="event-log">
+              {agentEvents.map((event) => (
+                <p key={event.id}>
+                  <b>{event.role ?? "job"}</b>
+                  <span>{event.message}</span>
+                </p>
+              ))}
+            </div>
+          )}
         </section>
 
         <section id="mix" className="mix-banner">

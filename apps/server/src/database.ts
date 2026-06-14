@@ -27,6 +27,7 @@ export function createDatabase(path: string): DatabaseSync {
       id TEXT PRIMARY KEY,
       song_id TEXT NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
       status TEXT NOT NULL,
+      error TEXT,
       created_at TEXT NOT NULL,
       completed_at TEXT
     );
@@ -47,6 +48,15 @@ export function createDatabase(path: string): DatabaseSync {
       error TEXT,
       started_at TEXT,
       completed_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+      role TEXT,
+      status TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS commits (
@@ -81,6 +91,13 @@ export function createDatabase(path: string): DatabaseSync {
       merged_at TEXT
     );
   `);
+
+  const jobColumns = database
+    .prepare("PRAGMA table_info(jobs)")
+    .all() as Array<{ name: string }>;
+  if (!jobColumns.some((column) => column.name === "error")) {
+    database.exec("ALTER TABLE jobs ADD COLUMN error TEXT;");
+  }
 
   return database;
 }
