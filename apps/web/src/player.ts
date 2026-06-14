@@ -19,6 +19,7 @@ export async function playProduction(
   }
   Tone.getTransport().stop();
   Tone.getTransport().cancel();
+  Tone.getTransport().position = "0:0:0";
   Tone.getTransport().bpm.value = song.bpm;
 
   const channels = {
@@ -98,6 +99,7 @@ export async function playProduction(
     stop() {
       Tone.getTransport().stop();
       Tone.getTransport().cancel();
+      Tone.getTransport().position = "0:0:0";
       kick.dispose();
       hat.dispose();
       harmony.dispose();

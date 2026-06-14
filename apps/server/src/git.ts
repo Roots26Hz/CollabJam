@@ -250,6 +250,28 @@ export function createGitEngine(
     runGit(root, ["push", "-u", remote, "main:main"]);
   }
 
+  function diagnostics(remote: string) {
+    const safeGit = (args: string[]) => {
+      try {
+        return { ok: true, output: runGit(root, args) };
+      } catch (error) {
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "Git command failed."
+        };
+      }
+    };
+
+    return {
+      root,
+      worktreesRoot,
+      branch: safeGit(["branch", "--show-current"]),
+      status: safeGit(["status", "--short"]),
+      remotes: safeGit(["remote", "-v"]),
+      remoteMain: safeGit(["ls-remote", "--heads", remote, "main"])
+    };
+  }
+
   function mergeBranchToMain(song: Song, role: AgentRole): CommitSummary {
     const branch = getBranch(song.id, role);
     const relativePartPath = join("songs", song.slug, "parts", `${role}.json`);
@@ -293,6 +315,7 @@ export function createGitEngine(
     commitAgentPart,
     pushMainIfMissing,
     pushBranch,
-    mergeBranchToMain
+    mergeBranchToMain,
+    diagnostics
   };
 }

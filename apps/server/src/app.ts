@@ -60,6 +60,33 @@ export function createApp(config: AppConfig, database: DatabaseSync) {
   app.post("/api/admin/check", sessions.requireAdmin, (_request, response) => {
     response.status(204).end();
   });
+  app.get(
+    "/api/admin/deployment",
+    sessions.requireAdmin,
+    (_request, response) => {
+      response.json({
+        nodeEnv: config.NODE_ENV,
+        agentRunner: config.AGENT_RUNNER,
+        codexCommand: config.CODEX_COMMAND,
+        paths: {
+          database: config.DATABASE_PATH,
+          gitRepo: config.GIT_REPO_PATH,
+          songs: config.SONGS_PATH,
+          worktrees: config.WORKTREES_PATH
+        },
+        github: {
+          configured: Boolean(
+            config.GITHUB_TOKEN && config.GITHUB_OWNER && config.GITHUB_REPO
+          ),
+          owner: config.GITHUB_OWNER ?? null,
+          repo: config.GITHUB_REPO ?? null,
+          remote: config.GITHUB_REMOTE,
+          tokenPresent: Boolean(config.GITHUB_TOKEN)
+        },
+        git: git.diagnostics(config.GITHUB_REMOTE)
+      });
+    }
+  );
   app.get("/api/songs", (_request, response) => {
     response.json({ songs: songs.listSongs() });
   });

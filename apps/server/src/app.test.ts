@@ -95,6 +95,15 @@ describe("server API", () => {
       .send({ password: "correct-horse" })
       .expect(200);
     await agent.post("/api/admin/check").expect(204);
+    const deployment = await agent.get("/api/admin/deployment").expect(200);
+    expect(deployment.body.github).toMatchObject({
+      configured: true,
+      owner: "collabjam",
+      repo: "studio",
+      remote: "origin",
+      tokenPresent: true
+    });
+    expect(deployment.body.git.branch.ok).toBe(true);
     await agent.post("/api/session/logout").expect(200);
     await agent.post("/api/admin/check").expect(401);
   });
