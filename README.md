@@ -1,29 +1,76 @@
 # CollabJam Studio
 
-CollabJam Studio is a Git-native collaborative music studio. Codex agents compose rhythm, harmony, and bass in isolated worktrees; humans review real pull requests before the merged production reaches playback.
+**A Git-native collaborative music studio where AI agents compose song parts in isolated branches, humans review pull requests, and the merged production plays in the browser.**
 
-## Current capabilities
+CollabJam Studio brings software collaboration patterns to AI-assisted music creation. A user starts a song idea, three agents work on rhythm, harmony, and bass in separate Git worktrees, each part is committed to its own branch, and a human producer approves the final merge through GitHub pull requests.
 
-This foundation includes:
+## Why It Exists
 
-- React + Vite studio shell
-- Express API with structured errors, security headers, CORS, and request logging
-- SQLite persistence using Node.js 24's built-in `node:sqlite`
-- Shared Zod schemas and TypeScript contracts
-- Signed, HTTP-only admin session cookie
-- Unit and API integration tests
-- Git-ready song and music-part JSON files
-- Song creation and public production APIs
-- Tone.js playback with rhythm, harmony, and bass mute controls
-- Isolated Git worktrees for rhythm, harmony, and bass branches
-- Parallel agent job orchestration with persisted event history
-- Mock agent runner for demos and tests, plus a Codex CLI runner option
-- GitHub PR creation for each agent branch
-- Human-controlled PR review and merge actions
-- Live studio pipeline, commit timeline, review status, and final mix readiness
-- Docker deployment for Railway or Render with persistent SQLite, songs, worktrees, and runtime Git repo
+Most AI music tools produce a final result as a black box. CollabJam Studio makes the creative process inspectable:
 
-## Setup
+- every AI-generated part is a structured JSON file
+- every agent works in an isolated Git worktree
+- every contribution has commits, branches, and history
+- every integration step goes through human review
+- the final merged song can be played directly with Tone.js
+
+The result is a music studio that feels closer to a collaborative engineering workflow: branch, compose, review, merge, play.
+
+## Demo Flow
+
+1. Create a song, for example `Neon Velvet Getaway`.
+2. Run three agents: `rhythm`, `harmony`, and `bass`.
+3. Each agent writes its part into a separate Git worktree.
+4. Each agent commits to a role branch.
+5. The app creates GitHub pull requests into `main`.
+6. A human marks PRs for review and approves merges.
+7. The final merged production plays in the browser.
+
+## Features
+
+- React + Vite studio dashboard
+- Express + TypeScript API
+- SQLite persistence with Node.js `node:sqlite`
+- Zod schemas shared across frontend and backend
+- Password-based admin login with signed HTTP-only cookies
+- Git worktree orchestration for isolated agent workspaces
+- Mock agent mode for predictable demos without AI credits
+- Codex CLI mode for real agent execution
+- GitHub PR creation and merge workflow
+- Live job events and commit timeline
+- Tone.js browser playback from structured music JSON
+- Docker deployment support for Railway and Render
+- Persistent `/data` layout for hosted SQLite, runtime Git repo, songs, and worktrees
+
+## Tech Stack
+
+```text
+apps/web          React, Vite, TypeScript, Tone.js
+apps/server       Express, TypeScript, SQLite, Git orchestration
+packages/shared   Zod schemas and shared TypeScript types
+songs/            Seed song JSON and part JSON
+```
+
+## Repository Layout
+
+```text
+.
+├── apps/
+│   ├── server/          Express API and orchestration engine
+│   └── web/             React studio UI and Tone.js playback
+├── packages/
+│   └── shared/          Shared schemas and types
+├── songs/               Seed local song data
+├── scripts/             Deployment entrypoint scripts
+├── Dockerfile           Full-stack production image
+├── railway.json         Railway deployment config
+├── render.yaml          Render deployment config
+└── .env.example         Local and hosted environment template
+```
+
+## Local Setup
+
+Requires Node.js 24 or newer.
 
 ```bash
 cp .env.example .env
@@ -31,65 +78,196 @@ npm install
 npm run dev
 ```
 
-The web app runs at `http://localhost:5173`; Vite proxies `/api` to the server at `http://localhost:3001`.
+The app runs locally as two processes:
 
-For real GitHub PRs, configure:
+```text
+Web:    http://localhost:5173
+API:    http://localhost:3001
+```
+
+Vite proxies `/api` requests to the server.
+
+## Common Commands
+
+```bash
+npm run dev          # Start web and API in development
+npm run format       # Format the workspace
+npm run lint         # Run ESLint
+npm run typecheck    # Type-check all workspaces
+npm test             # Run unit and API tests
+npm run build        # Build shared, web, and server packages
+npm start            # Start the production server after build
+```
+
+## Environment Variables
+
+Start with `.env.example`.
+
+### Required Locally
+
+```bash
+NODE_ENV=development
+PORT=3001
+WEB_ORIGIN=http://localhost:5173
+DATABASE_PATH=./data/collabjam.db
+GIT_REPO_PATH=.
+SONGS_PATH=./songs
+WORKTREES_PATH=./worktrees
+ADMIN_PASSWORD=change-me
+SESSION_SECRET=replace-with-at-least-32-characters
+AGENT_RUNNER=mock
+```
+
+### GitHub PR Integration
+
+Use a separate demo music repository for `GITHUB_REPO`. Do not point this at the CollabJam source repository unless you intentionally want agent branches there.
 
 ```bash
 GITHUB_TOKEN=github_pat_or_token
 GITHUB_OWNER=your-org-or-user
-GITHUB_REPO=your-repo
+GITHUB_REPO=your-demo-music-repo
 GITHUB_REMOTE=origin
+GIT_AUTHOR_NAME=CollabJam Studio
+GIT_AUTHOR_EMAIL=collabjam@example.local
 ```
 
-The token needs permission to create and merge pull requests. Branches are pushed to `GITHUB_REMOTE` before PR creation.
+The GitHub token needs permission to:
 
-## Deployment
+- push branches
+- create pull requests
+- merge pull requests
 
-This project deploys as one full-stack Docker service. The Docker image builds the React app, compiles the Express API, installs `git`, and seeds a persistent runtime Git repository under `/data/repo`. The Dockerfile does not declare a Docker `VOLUME`; configure `/data` using your host's volume or disk settings.
+For a classic personal access token, `repo` scope is enough for private repos. For fine-grained tokens, grant access to the demo repository with contents and pull request permissions.
 
-### Render
+### Agent Runtime
 
-Render works well for this project as a Docker Web Service, as long as you add a persistent disk mounted at `/data`. Without the disk, the app can boot, but SQLite data, song JSON, and Git worktrees will reset when the service restarts or redeploys.
-
-1. Push this repository to GitHub.
-2. In Render, create a new Blueprint from the repo, or create a Docker Web Service manually.
-3. Use the root `Dockerfile`.
-4. Add a persistent disk:
+Mock mode is the safest mode for demos:
 
 ```bash
-Mount path: /data
-Size: 1 GB or larger
-```
-
-5. Set these required environment variables:
-
-```bash
-NODE_ENV=production
-DATABASE_PATH=/data/collabjam.db
-GIT_REPO_PATH=/data/repo
-SONGS_PATH=/data/repo/songs
-WORKTREES_PATH=/data/worktrees
-WEB_ORIGIN=https://your-render-service.onrender.com
-ADMIN_PASSWORD=choose-a-long-password
-SESSION_SECRET=generate-at-least-32-random-characters
 AGENT_RUNNER=mock
 ```
 
-Render provides `PORT`; do not hard-code it unless you are running the container yourself.
+Codex mode runs real Codex CLI agents:
 
-6. Set the health check path to `/api/health`.
+```bash
+AGENT_RUNNER=codex
+CODEX_COMMAND=codex
+CODEX_TIMEOUT_MS=300000
+OPENAI_API_KEY=your-openai-api-key
+```
 
-For Blueprint deploys, `render.yaml` includes the Docker service, `/data` disk, health check, and non-secret defaults. Fill in the `sync: false` values in the Render dashboard after the service is created.
+On a local machine, Codex CLI may already be authenticated. In a hosted container, you need deployment-friendly Codex/OpenAI authentication, usually through `OPENAI_API_KEY`.
+
+## Git-Native Workflow
+
+For each song, CollabJam creates one branch per musical role:
+
+```text
+song-slug/rhythm
+song-slug/harmony
+song-slug/bass
+```
+
+Each branch is checked out in an isolated worktree:
+
+```text
+worktrees/song-slug/rhythm/
+worktrees/song-slug/harmony/
+worktrees/song-slug/bass/
+```
+
+Agents write JSON files like:
+
+```text
+songs/song-slug/parts/rhythm.json
+songs/song-slug/parts/harmony.json
+songs/song-slug/parts/bass.json
+```
+
+Each part is committed with a message such as:
+
+```text
+Rhythm agent: generate initial pattern v1
+```
+
+When PRs are created, the app pushes the role branches to GitHub and opens pull requests into `main`.
+
+## Music JSON Schema
+
+Each part is a structured JSON file:
+
+```json
+{
+  "version": 1,
+  "role": "bass",
+  "instrument": "mono-synth",
+  "bars": 4,
+  "events": [
+    {
+      "time": "0:0:0",
+      "note": "A2",
+      "duration": "4n",
+      "velocity": 0.9
+    }
+  ]
+}
+```
+
+Supported roles:
+
+```text
+rhythm
+harmony
+bass
+```
+
+Playback uses Tone.js and schedules the final merged JSON events directly from the browser.
+
+## API Overview
+
+```text
+GET    /api/health
+GET    /api/session
+POST   /api/session/login
+POST   /api/session/logout
+GET    /api/songs
+GET    /api/songs/:slug
+GET    /api/songs/:slug/history
+POST   /api/songs
+POST   /api/songs/:slug/generate
+GET    /api/jobs/:jobId
+GET    /api/jobs/:jobId/events
+GET    /api/songs/:slug/pull-requests
+POST   /api/songs/:slug/pull-requests
+POST   /api/pull-requests/:number/review
+POST   /api/pull-requests/:number/merge
+GET    /api/admin/deployment
+```
+
+Mutation endpoints require admin login.
+
+`GET /api/admin/deployment` is a protected diagnostics endpoint that reports deployment paths, GitHub configuration presence, Git remote state, and branch diagnostics without exposing secrets.
+
+## Deployment
+
+The production app runs as a single Docker service. The container builds the React app, compiles the Express server, installs `git`, and starts the API server. The server also serves the built React app.
+
+Persistent runtime data lives under `/data`:
+
+```text
+/data/collabjam.db      SQLite database
+/data/repo              Runtime Git repository
+/data/repo/songs        Song JSON files
+/data/worktrees         Agent Git worktrees
+```
+
+The Dockerfile does not declare a Docker `VOLUME`; configure `/data` using the host platform's volume or disk settings.
 
 ### Railway
 
-Railway also works with the same Docker image and `/data` layout.
-
-1. Push this repository to GitHub.
-2. Create a Railway project from the GitHub repository.
-3. Add a Railway volume mounted at `/data`.
-4. Set the required environment variables:
+1. Deploy from the GitHub source repository.
+2. Add a Railway volume mounted at `/data`.
+3. Set environment variables:
 
 ```bash
 NODE_ENV=production
@@ -104,61 +282,98 @@ SESSION_SECRET=generate-at-least-32-random-characters
 AGENT_RUNNER=mock
 ```
 
-5. Deploy. Railway uses `railway.json` and the root `Dockerfile`; health checks target `/api/health`.
+Railway uses `railway.json` and the root `Dockerfile`. Health checks target `/api/health`.
 
-For real GitHub PRs on Render or Railway, also set:
+### Render
 
-```bash
-GITHUB_TOKEN=github_pat_or_token
-GITHUB_OWNER=your-org-or-user
-GITHUB_REPO=your-demo-repo
-GITHUB_REMOTE=origin
-GIT_AUTHOR_NAME=CollabJam Studio
-GIT_AUTHOR_EMAIL=collabjam@example.local
-```
-
-The startup script configures the runtime repo's `origin` remote and provides the token to `git push` through `GIT_ASKPASS`, so the token is not written into the Git remote URL.
-
-For hosted Codex agents, switch:
+1. Create a Blueprint or Docker Web Service from this repository.
+2. Use the root `Dockerfile`.
+3. Add a persistent disk mounted at `/data`.
+4. Set environment variables:
 
 ```bash
-AGENT_RUNNER=codex
-CODEX_COMMAND=codex
-CODEX_TIMEOUT_MS=300000
-OPENAI_API_KEY=your-openai-api-key
+NODE_ENV=production
+DATABASE_PATH=/data/collabjam.db
+GIT_REPO_PATH=/data/repo
+SONGS_PATH=/data/repo/songs
+WORKTREES_PATH=/data/worktrees
+WEB_ORIGIN=https://your-render-service.onrender.com
+ADMIN_PASSWORD=choose-a-long-password
+SESSION_SECRET=generate-at-least-32-random-characters
+AGENT_RUNNER=mock
 ```
 
-The Docker image installs the Codex CLI by default. Keep `AGENT_RUNNER=mock` for a predictable public demo that does not consume Codex credits.
+Render provides `PORT`, so do not hard-code it unless you are running the container yourself.
 
-## Commands
+## Demo Repository
 
-```bash
-npm run dev
-npm run typecheck
-npm run lint
-npm test
-npm run build
-npm start
-```
+CollabJam is designed to use a separate GitHub repository for generated songs and PR demonstrations. That repository receives:
 
-For a production-style local run, build first and set `NODE_ENV=production`. The Express server serves `apps/web/dist` and provides SPA fallback routing.
+- `songs/<song-slug>/song.json`
+- `songs/<song-slug>/parts/rhythm.json`
+- `songs/<song-slug>/parts/harmony.json`
+- `songs/<song-slug>/parts/bass.json`
+- agent branches
+- GitHub pull requests
+- merge commits for final productions
 
-## Architecture
+A demo repository README template is included at:
 
 ```text
-apps/web         React studio interface
-apps/server      Express API, authentication, and SQLite
-packages/shared  Runtime schemas and shared TypeScript types
+docs/demo-repository-readme.md
 ```
 
-## Roadmap
+## Troubleshooting
 
-1. Foundation: monorepo, app shell, API, authentication, and persistence
-2. Music domain: JSON music schema and Tone.js sequencing
-3. Git engine: isolated worktrees and agent branches
-4. Codex agents: parallel structured generation
-5. GitHub workflow: real pull requests and human-controlled merges
-6. Studio UI: live history, reviews, and final production
-7. Deployment: Docker deployment with persistent storage for Railway and Render
+### Create PRs button does nothing
 
-Phases 1-7 are implemented. The default runner is `AGENT_RUNNER=mock` so local demos and tests do not consume Codex credits; set `AGENT_RUNNER=codex` to use the configured `CODEX_COMMAND`.
+Make sure you are logged in as admin and that all three agent role commits exist. If it fails, the dashboard should show the GitHub or Git error. You can also inspect:
+
+```text
+/api/admin/deployment
+```
+
+### GitHub says branches have no history in common
+
+The app bridges unrelated demo repository history before creating PRs by merging remote `main` into each agent branch with an `ours` strategy. Redeploy the latest commit if you still see this.
+
+### GitHub auth fails
+
+Check:
+
+```bash
+GITHUB_TOKEN
+GITHUB_OWNER
+GITHUB_REPO
+GITHUB_REMOTE
+```
+
+The token must be able to push branches and create/merge pull requests in the demo repo.
+
+### Production audio is silent
+
+Use a modern browser such as Chrome, hard refresh after deployment, and click the playback button directly. Browser audio requires a user gesture. The app schedules Tone.js events directly from the merged JSON parts.
+
+### Data disappears after redeploy
+
+Your hosted app is missing persistent storage. Mount a Railway volume or Render disk at:
+
+```text
+/data
+```
+
+## Project Status
+
+Phases 1-7 are implemented:
+
+1. Foundation
+2. Music domain and Tone.js playback
+3. Git worktrees
+4. Codex agent runner
+5. GitHub pull request workflow
+6. Studio dashboard
+7. Docker deployment for Railway and Render
+
+## License
+
+This repository is currently a demo project. Add a license before distributing it publicly.
