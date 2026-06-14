@@ -660,6 +660,13 @@ footer {
   color: var(--coral);
   font-size: 12px;
 }
+.dashboard-error {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 122, 89, 0.35);
+  border-radius: 16px;
+  background: rgba(255, 122, 89, 0.08);
+}
 @media (max-width: 900px) {
   nav {
     display: none;

@@ -33,6 +33,8 @@ const roleMeta = {
   bass: { label: "Bass", color: "var(--mint)", bars: [84, 48, 70, 56, 92, 62] }
 } satisfies Record<AgentRole, { label: string; color: string; bars: number[] }>;
 
+const agentRoles = Object.keys(roleMeta) as AgentRole[];
+
 function formatTime(value: string | null) {
   if (!value) return "pending";
   return new Intl.DateTimeFormat(undefined, {
@@ -63,6 +65,7 @@ function Studio() {
   const [modal, setModal] = useState<"login" | "song" | null>(null);
   const [error, setError] = useState("");
   const [playing, setPlaying] = useState(false);
+  const [creatingPullRequests, setCreatingPullRequests] = useState(false);
   const [muted, setMuted] = useState<Set<AgentRole>>(new Set());
   const player = useRef<Awaited<ReturnType<typeof playProduction>> | null>(
     null
@@ -255,23 +258,30 @@ function Studio() {
   async function createPullRequests() {
     if (!production) return;
     setError("");
-    const response = await fetch(
-      `/api/songs/${production.song.slug}/pull-requests`,
-      { method: "POST", credentials: "include" }
-    );
-    if (!response.ok) {
-      setError(
-        await responseError(
-          response,
-          "Could not create GitHub PRs. Check GitHub configuration."
-        )
+    setCreatingPullRequests(true);
+    try {
+      const response = await fetch(
+        `/api/songs/${production.song.slug}/pull-requests`,
+        { method: "POST", credentials: "include" }
       );
-      return;
+      if (!response.ok) {
+        setError(
+          await responseError(
+            response,
+            "Could not create GitHub PRs. Check GitHub configuration."
+          )
+        );
+        return;
+      }
+      const data = (await response.json()) as {
+        pullRequests: PullRequestSummary[];
+      };
+      setPullRequests(data.pullRequests);
+    } catch {
+      setError("Could not reach the studio API to create GitHub PRs.");
+    } finally {
+      setCreatingPullRequests(false);
     }
-    const data = (await response.json()) as {
-      pullRequests: PullRequestSummary[];
-    };
-    setPullRequests(data.pullRequests);
   }
 
   async function updatePullRequest(number: number, action: "review" | "merge") {
@@ -314,6 +324,16 @@ function Studio() {
     Boolean(production) &&
     pullRequests.length === 3 &&
     mergedPullRequests === pullRequests.length;
+  const committedRoles = new Set(
+    history?.commits
+      .map((commit) => commit.role)
+      .filter((role): role is AgentRole => Boolean(role)) ?? []
+  );
+  const agentPartsCommitted = agentRoles.every((role) =>
+    committedRoles.has(role)
+  );
+  const agentsReadyForReview =
+    agentJob?.job.status === "completed" || agentPartsCommitted;
   const pipelineSteps = [
     {
       label: "Seed",
@@ -322,8 +342,9 @@ function Studio() {
     },
     {
       label: "Agents",
-      value: agentJob?.job.status ?? (production ? "ready" : "waiting"),
-      active: agentJob?.job.status === "completed"
+      value:
+        agentJob?.job.status ?? (agentPartsCommitted ? "completed" : "ready"),
+      active: agentsReadyForReview
     },
     {
       label: "Review",
@@ -364,6 +385,9 @@ function Studio() {
       </header>
 
       <main>
+        {error && !modal && (
+          <p className="form-error dashboard-error">{error}</p>
+        )}
         <section className="hero">
           <div>
             <p className="eyebrow">Git-native music production</p>
@@ -595,12 +619,13 @@ function Studio() {
               disabled={
                 !production ||
                 !session.authenticated ||
-                agentJob?.job.status !== "completed" ||
-                pullRequests.length > 0
+                !agentsReadyForReview ||
+                pullRequests.length > 0 ||
+                creatingPullRequests
               }
               onClick={() => void createPullRequests()}
             >
-              Create PRs
+              {creatingPullRequests ? "Creating PRs..." : "Create PRs"}
             </button>
           </div>
           {pullRequests.length > 0 && (
