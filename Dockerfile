@@ -36,7 +36,6 @@ ENV CODEX_COMMAND=codex
 ENV CODEX_TIMEOUT_MS=300000
 ENV GITHUB_REMOTE=origin
 
-VOLUME ["/data"]
 EXPOSE 3001
 
 ENTRYPOINT ["/app/scripts/railway-entrypoint.sh"]

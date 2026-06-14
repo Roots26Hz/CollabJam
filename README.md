@@ -46,7 +46,7 @@ The token needs permission to create and merge pull requests. Branches are pushe
 
 ## Deployment
 
-This project deploys as one full-stack Docker service. The Docker image builds the React app, compiles the Express API, installs `git`, and seeds a persistent runtime Git repository under `/data/repo`.
+This project deploys as one full-stack Docker service. The Docker image builds the React app, compiles the Express API, installs `git`, and seeds a persistent runtime Git repository under `/data/repo`. The Dockerfile does not declare a Docker `VOLUME`; configure `/data` using your host's volume or disk settings.
 
 ### Render
 
